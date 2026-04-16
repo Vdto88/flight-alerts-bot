@@ -1,5 +1,5 @@
 import pytest
-from datetime import date
+from datetime import date, timezone
 from airlines.base import Flight
 import cache
 
@@ -61,7 +61,7 @@ async def test_purge_removes_expired(monkeypatch):
     # Fake that entry expired by backdating expires_at
     import aiosqlite
     async with aiosqlite.connect(cache.DB_PATH) as db:
-        past = datetime.utcnow() - timedelta(hours=2)
+        past = datetime.now(timezone.utc) - timedelta(hours=2)
         await db.execute("UPDATE seen_flights SET expires_at = ?", (past,))
         await db.commit()
 
