@@ -38,7 +38,7 @@ async def purge_expired() -> None:
         await db.commit()
 
 
-async def is_cached(flight: Flight, ttl_hours: int = 24) -> bool:
+async def is_cached(flight: Flight) -> bool:
     key = flight.cache_key()
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(

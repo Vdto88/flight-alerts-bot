@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 
-from telegram import Bot
+from telegram import Bot, LinkPreviewOptions
 from telegram.constants import ParseMode
 
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHANNEL_ID
@@ -45,7 +45,7 @@ async def send_alert(flight: Flight) -> None:
             chat_id=TELEGRAM_CHANNEL_ID,
             text=message,
             parse_mode=ParseMode.MARKDOWN,
-            disable_web_page_preview=True,
+            link_preview_options=LinkPreviewOptions(is_disabled=True),
         )
         logger.info(
             f"Alerta enviado: {flight.airline}/{flight.origin}→{flight.destination} "

@@ -11,7 +11,7 @@ from airlines.base import FlightSearcher
 from airlines.gol import GolSearcher
 from airlines.latam import LatamSearcher
 from airlines.azul import AzulSearcher
-from config import ROUTES, CYCLE_MINUTES, CACHE_TTL_HOURS
+from config import ROUTES, CYCLE_MINUTES, CACHE_TTL_HOURS, SEARCH_DAYS_AHEAD, BATCH_SIZE
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ async def run_cycle() -> None:
         threshold = route["threshold"]
         airline_names = [n for n in route["airlines"] if n in SEARCHERS]
 
-        tasks = [SEARCHERS[name].search_range(origin, dest) for name in airline_names]
+        tasks = [SEARCHERS[name].search_range(origin, dest, SEARCH_DAYS_AHEAD, BATCH_SIZE) for name in airline_names]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         for name, result in zip(airline_names, results):
@@ -53,7 +53,7 @@ async def run_cycle() -> None:
             total_candidates += len(below)
 
             for flight in below:
-                if not await cache.is_cached(flight, CACHE_TTL_HOURS):
+                if not await cache.is_cached(flight):
                     await telegram_bot.send_alert(flight)
                     await cache.save_to_cache(flight, CACHE_TTL_HOURS)
                     total_alerts += 1
