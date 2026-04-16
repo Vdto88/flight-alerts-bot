@@ -58,10 +58,10 @@ async def test_purge_removes_expired(monkeypatch):
     flight = _make_flight()
     await cache.save_to_cache(flight, ttl_hours=1)
 
-    # Fake that entry expired by backdating expires_at
+    # Fake that entry expired by backdating expires_at to a string
     import aiosqlite
     async with aiosqlite.connect(cache.DB_PATH) as db:
-        past = datetime.now(timezone.utc) - timedelta(hours=2)
+        past = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
         await db.execute("UPDATE seen_flights SET expires_at = ?", (past,))
         await db.commit()
 
