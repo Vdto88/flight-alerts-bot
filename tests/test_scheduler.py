@@ -95,9 +95,11 @@ async def test_run_cycle_handles_searcher_exception(monkeypatch):
     monkeypatch.setattr(scheduler, "SEARCHERS", {
         "GOL": MagicMock(search_range=AsyncMock(side_effect=RuntimeError("API down")))
     })
+    monkeypatch.setattr(scheduler, "google_searcher",
+        MagicMock(search_range=AsyncMock(return_value=[]))
+    )
     monkeypatch.setattr(cache, "purge_expired", AsyncMock())
     monkeypatch.setattr(telegram_bot, "send_alert", AsyncMock())
-
     monkeypatch.setattr(scheduler, "ROUTES", [
         {"from": "CNF", "to": "GRU", "threshold": 350, "airlines": ["GOL"]}
     ])
@@ -105,3 +107,102 @@ async def test_run_cycle_handles_searcher_exception(monkeypatch):
     # Should not raise — errors are swallowed and logged
     await scheduler.run_cycle()
     telegram_bot.send_alert.assert_not_called()
+
+
+def test_matches_airline_gol():
+    from scheduler import _matches_airline
+    assert _matches_airline("GOL Linhas Aéreas", "GOL") is True
+    assert _matches_airline("Gol", "GOL") is True
+    assert _matches_airline("LATAM Airlines", "GOL") is False
+
+
+def test_matches_airline_latam():
+    from scheduler import _matches_airline
+    assert _matches_airline("LATAM Airlines", "LATAM") is True
+    assert _matches_airline("Latam", "LATAM") is True
+    assert _matches_airline("Azul", "LATAM") is False
+
+
+def test_matches_airline_azul():
+    from scheduler import _matches_airline
+    assert _matches_airline("Azul Linhas Aéreas", "AZUL") is True
+    assert _matches_airline("AZUL", "AZUL") is True
+    assert _matches_airline("GOL", "AZUL") is False
+
+
+async def test_run_cycle_uses_fallback_when_scraper_returns_empty(monkeypatch):
+    import scheduler
+    import cache
+    import telegram_bot
+
+    cheap_flight = _flight(price=289.90, airline="GOL Linhas Aéreas")
+
+    monkeypatch.setattr(scheduler, "SEARCHERS", {
+        "GOL": MagicMock(search_range=AsyncMock(return_value=[]))
+    })
+    monkeypatch.setattr(scheduler, "google_searcher",
+        MagicMock(search_range=AsyncMock(return_value=[cheap_flight]))
+    )
+    monkeypatch.setattr(cache, "purge_expired", AsyncMock())
+    monkeypatch.setattr(cache, "is_cached", AsyncMock(return_value=False))
+    monkeypatch.setattr(cache, "save_to_cache", AsyncMock())
+    monkeypatch.setattr(telegram_bot, "send_alert", AsyncMock())
+    monkeypatch.setattr(scheduler, "ROUTES", [
+        {"from": "CNF", "to": "GRU", "threshold": 350, "airlines": ["GOL"]}
+    ])
+
+    await scheduler.run_cycle()
+
+    telegram_bot.send_alert.assert_called_once_with(cheap_flight)
+
+
+async def test_run_cycle_fallback_filters_wrong_airline(monkeypatch):
+    import scheduler
+    import cache
+    import telegram_bot
+
+    latam_flight = _flight(price=289.90, airline="LATAM Airlines")
+
+    monkeypatch.setattr(scheduler, "SEARCHERS", {
+        "GOL": MagicMock(search_range=AsyncMock(return_value=[]))
+    })
+    monkeypatch.setattr(scheduler, "google_searcher",
+        MagicMock(search_range=AsyncMock(return_value=[latam_flight]))
+    )
+    monkeypatch.setattr(cache, "purge_expired", AsyncMock())
+    monkeypatch.setattr(cache, "is_cached", AsyncMock(return_value=False))
+    monkeypatch.setattr(cache, "save_to_cache", AsyncMock())
+    monkeypatch.setattr(telegram_bot, "send_alert", AsyncMock())
+    monkeypatch.setattr(scheduler, "ROUTES", [
+        {"from": "CNF", "to": "GRU", "threshold": 350, "airlines": ["GOL"]}
+    ])
+
+    await scheduler.run_cycle()
+
+    telegram_bot.send_alert.assert_not_called()
+
+
+async def test_run_cycle_uses_fallback_on_exception(monkeypatch):
+    import scheduler
+    import cache
+    import telegram_bot
+
+    cheap_flight = _flight(price=289.90, airline="GOL Linhas Aéreas")
+
+    monkeypatch.setattr(scheduler, "SEARCHERS", {
+        "GOL": MagicMock(search_range=AsyncMock(side_effect=RuntimeError("API down")))
+    })
+    monkeypatch.setattr(scheduler, "google_searcher",
+        MagicMock(search_range=AsyncMock(return_value=[cheap_flight]))
+    )
+    monkeypatch.setattr(cache, "purge_expired", AsyncMock())
+    monkeypatch.setattr(cache, "is_cached", AsyncMock(return_value=False))
+    monkeypatch.setattr(cache, "save_to_cache", AsyncMock())
+    monkeypatch.setattr(telegram_bot, "send_alert", AsyncMock())
+    monkeypatch.setattr(scheduler, "ROUTES", [
+        {"from": "CNF", "to": "GRU", "threshold": 350, "airlines": ["GOL"]}
+    ])
+
+    await scheduler.run_cycle()
+
+    telegram_bot.send_alert.assert_called_once_with(cheap_flight)
