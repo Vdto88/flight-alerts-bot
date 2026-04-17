@@ -30,6 +30,11 @@ class GolSearcher(FlightSearcher):
             "api-key": GOL_API_KEY,
             "x-api-key": GOL_API_KEY,
             "region": "BRAZIL",
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Origin": "https://www.smiles.com.br",
+            "Referer": "https://www.smiles.com.br/",
         }
 
         for attempt in range(REQUEST_RETRIES):
