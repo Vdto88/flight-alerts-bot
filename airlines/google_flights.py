@@ -63,7 +63,7 @@ class GoogleFlightsSearcher(FlightSearcher):
             trip="one-way",
             seat="economy",
         )
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         try:
             result = await loop.run_in_executor(None, fn)
         except Exception as e:

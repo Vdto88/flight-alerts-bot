@@ -19,14 +19,14 @@ def test_parse_time_midnight():
 def test_parse_time_empty():
     assert _parse_time("") == ""
 
-def test_parse_price_dollar():
-    assert _parse_price("$289") == 289.0
+def test_parse_price_brl_symbol():
+    assert _parse_price("R$289") == 289.0
 
-def test_parse_price_with_comma():
-    assert _parse_price("$1,290") == 1290.0
+def test_parse_price_with_space():
+    assert _parse_price("R$ 1.290,50") == 1290.50
 
 def test_parse_price_plain():
     assert _parse_price("450") == 450.0
 
 def test_parse_price_invalid():
-    assert _parse_price("free") is None
+    assert _parse_price("grátis") is None
