@@ -46,6 +46,8 @@ async def run_cycle() -> None:
     logger.info(f"CICLO INICIADO — {len(ROUTES)} rotas")
     await cache.purge_expired()
 
+    _gf_cache: dict[tuple, list] = {}
+
     for route in ROUTES:
         origin = route["from"]
         dest = route["to"]
@@ -63,8 +65,15 @@ async def run_cycle() -> None:
 
             if not result:
                 logger.info(f"{name}/{origin}→{dest}: fallback para Google Flights")
-                gf_flights = await google_searcher.search_range(origin, dest, SEARCH_DAYS_AHEAD, BATCH_SIZE)
-                result = [f for f in gf_flights if _matches_airline(f.airline, name)]
+                try:
+                    key = (origin, dest)
+                    if key not in _gf_cache:
+                        _gf_cache[key] = await google_searcher.search_range(origin, dest, SEARCH_DAYS_AHEAD, BATCH_SIZE)
+                    gf_flights = _gf_cache[key]
+                    result = [f for f in gf_flights if _matches_airline(f.airline, name)]
+                except Exception as e:
+                    logger.warning(f"{name}/{origin}→{dest}: fallback Google Flights falhou: {e}")
+                    total_errors += 1
 
             below = [f for f in result if f.price < threshold and f.stops <= 1]
             logger.info(
