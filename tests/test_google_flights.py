@@ -30,3 +30,70 @@ def test_parse_price_plain():
 
 def test_parse_price_invalid():
     assert _parse_price("grátis") is None
+
+
+def _make_ff_flight(name="GOL Linhas Aéreas", departure="7:40 AM",
+                    arrival="9:10 AM", stops=0, price="R$289"):
+    f = MagicMock()
+    f.name = name
+    f.departure = departure
+    f.arrival = arrival
+    f.stops = stops
+    f.price = price
+    return f
+
+
+def _make_ff_result(flights):
+    r = MagicMock()
+    r.flights = flights
+    return r
+
+
+def test_parse_valid_flight():
+    searcher = GoogleFlightsSearcher()
+    result = _make_ff_result([_make_ff_flight()])
+    flights = searcher._parse(result, "GRU", "CGH", date(2026, 5, 15))
+    assert len(flights) == 1
+    f = flights[0]
+    assert f.airline == "GOL Linhas Aéreas"
+    assert f.price == 289.0
+    assert f.departure_time == "07h40"
+    assert f.arrival_time == "09h10"
+    assert f.is_direct is True
+    assert f.stops == 0
+    assert f.origin == "GRU"
+    assert f.destination == "CGH"
+
+
+def test_parse_filters_more_than_one_stop():
+    searcher = GoogleFlightsSearcher()
+    result = _make_ff_result([_make_ff_flight(stops=2)])
+    assert searcher._parse(result, "GRU", "CGH", date(2026, 5, 15)) == []
+
+
+def test_parse_skips_invalid_price():
+    searcher = GoogleFlightsSearcher()
+    result = _make_ff_result([_make_ff_flight(price="grátis")])
+    assert searcher._parse(result, "GRU", "CGH", date(2026, 5, 15)) == []
+
+
+def test_parse_empty_result():
+    searcher = GoogleFlightsSearcher()
+    result = _make_ff_result([])
+    assert searcher._parse(result, "GRU", "CGH", date(2026, 5, 15)) == []
+
+
+async def test_search_returns_flights():
+    searcher = GoogleFlightsSearcher()
+    ff_result = _make_ff_result([_make_ff_flight()])
+    with patch("airlines.google_flights.get_flights", return_value=ff_result):
+        flights = await searcher.search("GRU", "CGH", date(2026, 5, 15))
+    assert len(flights) == 1
+    assert flights[0].price == 289.0
+
+
+async def test_search_returns_empty_on_exception():
+    searcher = GoogleFlightsSearcher()
+    with patch("airlines.google_flights.get_flights", side_effect=Exception("network error")):
+        flights = await searcher.search("GRU", "CGH", date(2026, 5, 15))
+    assert flights == []
