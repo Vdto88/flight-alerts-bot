@@ -30,16 +30,16 @@ def _parse_time(raw: str) -> str:
 
 
 def _parse_price(raw: str) -> Optional[float]:
-    """Extract float from strings like '$289', '$1,290', '450'."""
+    """Extract float from strings like 'R$289', 'R$ 1.290,50', 'R$1.290', '$289'."""
     if not raw:
         return None
-    # Remove currency symbols and spaces, keep digits, commas, dots
     cleaned = re.sub(r"[^\d,.]", "", raw.strip())
     if not cleaned:
         return None
-    # Remove thousands separators (commas before 3 digits, or dots used as thousands)
-    # Detect format: if ends with ,XX it's decimal comma; otherwise comma is thousands sep
-    if re.search(r",\d{2}$", cleaned):
+    # Dot-as-thousands-separator: "1.290" or "1.290.000" with no comma
+    if re.search(r"\.\d{3}$", cleaned) and "," not in cleaned:
+        cleaned = cleaned.replace(".", "")
+    elif re.search(r",\d{2}$", cleaned):
         # European decimal format: 1.290,50
         cleaned = cleaned.replace(".", "").replace(",", ".")
     else:
@@ -85,9 +85,9 @@ class GoogleFlightsSearcher(FlightSearcher):
                 dep_time = _parse_time(ff.departure or "")
                 arr_time = _parse_time(ff.arrival or "")
                 booking_url = (
-                    f"{_BOOKING_BASE}?hl=pt-BR"
-                    f"&origin={origin}&destination={destination}"
-                    f"&outbound={departure_date.strftime('%Y-%m-%d')}"
+                    f"{_BOOKING_BASE}/search?hl=pt-BR"
+                    f"&q=flights+from+{origin}+to+{destination}"
+                    f"+on+{departure_date.strftime('%Y-%m-%d')}"
                 )
                 flights.append(Flight(
                     origin=origin,

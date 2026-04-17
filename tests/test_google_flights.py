@@ -31,6 +31,9 @@ def test_parse_price_plain():
 def test_parse_price_invalid():
     assert _parse_price("grátis") is None
 
+def test_parse_price_dot_thousands():
+    assert _parse_price("R$1.290") == 1290.0
+
 
 def _make_ff_flight(name="GOL Linhas Aéreas", departure="7:40 AM",
                     arrival="9:10 AM", stops=0, price="R$289"):
