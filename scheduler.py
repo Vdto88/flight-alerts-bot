@@ -106,13 +106,18 @@ async def run_miles_cycle() -> None:
     start = time.monotonic()
     total_alerts = 0
     logger.info(f"CICLO MILHAS INICIADO — {len(MILES_ROUTES)} rotas")
+    await cache.purge_expired()
 
     for route in MILES_ROUTES:
         origin = route["from"]
         dest = route["to"]
         threshold = route["miles_threshold"]
         program = route["program"]
-        searcher = MILES_SEARCHERS[program]
+
+        searcher = MILES_SEARCHERS.get(program)
+        if searcher is None:
+            logger.warning(f"ERRO MILHAS: programa desconhecido '{program}' (rota {origin}→{dest})")
+            continue
 
         try:
             flights = await searcher.search_range(origin, dest, MILES_DAYS_AHEAD)
