@@ -12,7 +12,10 @@ from airlines.gol import GolSearcher
 from airlines.latam import LatamSearcher
 from airlines.azul import AzulSearcher
 from airlines.google_flights import GoogleFlightsSearcher
-from config import ROUTES, CYCLE_MINUTES, CACHE_TTL_HOURS, SEARCH_DAYS_AHEAD, BATCH_SIZE
+from airlines.smiles_miles import SmilesMilesSearcher
+from airlines.azul_miles import AzulMilesSearcher
+from config import ROUTES, CYCLE_MINUTES, CACHE_TTL_HOURS, SEARCH_DAYS_AHEAD, BATCH_SIZE, \
+    MILES_ROUTES, MILES_DAYS_AHEAD, MILES_CYCLE_MINUTES
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +26,11 @@ SEARCHERS: dict[str, FlightSearcher] = {
 }
 
 google_searcher = GoogleFlightsSearcher()
+
+MILES_SEARCHERS: dict[str, FlightSearcher] = {
+    "SMILES":     SmilesMilesSearcher(),
+    "AZUL_MILES": AzulMilesSearcher(),
+}
 
 _AIRLINE_ALIASES: dict[str, list[str]] = {
     "GOL":   ["gol"],
@@ -94,6 +102,39 @@ async def run_cycle() -> None:
     )
 
 
+async def run_miles_cycle() -> None:
+    start = time.monotonic()
+    total_alerts = 0
+    logger.info(f"CICLO MILHAS INICIADO — {len(MILES_ROUTES)} rotas")
+
+    for route in MILES_ROUTES:
+        origin = route["from"]
+        dest = route["to"]
+        threshold = route["miles_threshold"]
+        program = route["program"]
+        searcher = MILES_SEARCHERS[program]
+
+        try:
+            flights = await searcher.search_range(origin, dest, MILES_DAYS_AHEAD)
+        except Exception as e:
+            logger.warning(f"ERRO MILHAS {program}/{origin}→{dest}: {e}")
+            continue
+
+        below = [f for f in flights if f.miles is not None and f.miles <= threshold]
+        logger.info(
+            f"{program}/{origin}→{dest}: {len(flights)} voos, {len(below)} abaixo de {threshold} milhas"
+        )
+
+        for flight in below:
+            if not await cache.is_cached(flight):
+                await telegram_bot.send_alert(flight)
+                await cache.save_to_cache(flight, CACHE_TTL_HOURS)
+                total_alerts += 1
+
+    elapsed = time.monotonic() - start
+    logger.info(f"CICLO MILHAS CONCLUÍDO — {elapsed:.0f}s | alertas: {total_alerts}")
+
+
 def create_scheduler() -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
@@ -102,5 +143,12 @@ def create_scheduler() -> AsyncIOScheduler:
         minutes=CYCLE_MINUTES,
         next_run_time=datetime.now(),
         id="flight_cycle",
+    )
+    scheduler.add_job(
+        run_miles_cycle,
+        trigger="interval",
+        minutes=MILES_CYCLE_MINUTES,
+        next_run_time=datetime.now(),
+        id="miles_cycle",
     )
     return scheduler
