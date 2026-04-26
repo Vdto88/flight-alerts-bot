@@ -1,0 +1,58 @@
+{
+  "requestedFlightSegmentList": [
+    {
+      "flightList": [
+        {
+          "departure": {
+            "date": "2026-07-15T07:40:00",
+            "airport": {"code": "CNF"}
+          },
+          "arrival": {
+            "date": "2026-07-15T09:10:00",
+            "airport": {"code": "IGU"}
+          },
+          "stops": 0,
+          "availabilityList": [
+            {
+              "type": "SMILES_CLUB",
+              "quantity": 4,
+              "fare": {
+                "miles": 15000,
+                "money": {"total": 58.90}
+              }
+            },
+            {
+              "type": "PROMO",
+              "quantity": 2,
+              "fare": {
+                "miles": 12000,
+                "money": {"total": 58.90}
+              }
+            }
+          ]
+        },
+        {
+          "departure": {
+            "date": "2026-07-15T14:00:00",
+            "airport": {"code": "CNF"}
+          },
+          "arrival": {
+            "date": "2026-07-15T15:30:00",
+            "airport": {"code": "IGU"}
+          },
+          "stops": 0,
+          "availabilityList": [
+            {
+              "type": "SMILES_CLUB",
+              "quantity": 0,
+              "fare": {
+                "miles": 20000,
+                "money": {"total": 58.90}
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
