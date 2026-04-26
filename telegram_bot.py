@@ -69,9 +69,10 @@ async def send_alert(flight: Flight) -> None:
             parse_mode=ParseMode.MARKDOWN,
             link_preview_options=LinkPreviewOptions(is_disabled=True),
         )
+        value_str = f"{flight.miles} mi" if flight.is_miles_flight else f"R${flight.price:.2f}"
         logger.info(
             f"Alerta enviado: {flight.airline}/{flight.origin}→{flight.destination} "
-            f"R${flight.price:.2f} {flight.departure_date}"
+            f"{value_str} {flight.departure_date}"
         )
     except Exception as e:
         logger.error(f"Falha ao enviar alerta Telegram: {e}")
