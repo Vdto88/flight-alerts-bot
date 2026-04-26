@@ -20,8 +20,13 @@ def get_bot() -> Bot:
 
 
 def format_alert(flight: Flight) -> str:
+    if flight.is_miles_flight:
+        return _format_miles_alert(flight)
+    return _format_money_alert(flight)
+
+
+def _format_money_alert(flight: Flight) -> str:
     dep_date = flight.departure_date.strftime("%d/%m/%Y")
-    # Brazilian number format: 1.234,56
     price_str = f"R$ {flight.price:_.2f}".replace("_", "X").replace(".", ",").replace("X", ".")
     stops_str = "Direto" if flight.is_direct else f"{flight.stops} parada"
     now_str = datetime.now().strftime("%H:%M")
@@ -30,6 +35,23 @@ def format_alert(flight: Flight) -> str:
         f"✈️ *PASSAGEM BARATA DETECTADA*\n\n"
         f"🛫 {flight.origin} → {flight.destination}\n"
         f"💰 {price_str}\n"
+        f"📅 {dep_date} • {flight.departure_time} → {flight.arrival_time}\n"
+        f"🏢 {flight.airline} • {stops_str}\n"
+        f"🔗 [Reservar agora]({flight.booking_url})\n\n"
+        f"⏰ Detectado às {now_str}"
+    )
+
+
+def _format_miles_alert(flight: Flight) -> str:
+    dep_date = flight.departure_date.strftime("%d/%m/%Y")
+    miles_str = f"{flight.miles:,}".replace(",", ".")  # 15000 → "15.000"
+    stops_str = "Direto" if flight.is_direct else f"{flight.stops} parada"
+    now_str = datetime.now().strftime("%H:%M")
+
+    return (
+        f"✈️ *PASSAGEM COM MILHAS DETECTADA*\n\n"
+        f"🛫 {flight.origin} → {flight.destination}\n"
+        f"🏆 {miles_str} milhas\n"
         f"📅 {dep_date} • {flight.departure_time} → {flight.arrival_time}\n"
         f"🏢 {flight.airline} • {stops_str}\n"
         f"🔗 [Reservar agora]({flight.booking_url})\n\n"
