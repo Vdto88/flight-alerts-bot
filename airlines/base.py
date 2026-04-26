@@ -1,8 +1,8 @@
 import math
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, timedelta
-from typing import List
+from typing import List, Optional
 import asyncio
 import logging
 
@@ -12,17 +12,28 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Flight:
     origin: str           # IATA, e.g. "CNF"
-    destination: str      # IATA, e.g. "GRU"
-    airline: str          # "GOL" | "LATAM" | "AZUL"
+    destination: str      # IATA, e.g. "IGU"
+    airline: str          # "GOL" | "LATAM" | "AZUL" | "SMILES" | "AZUL_MILES"
     departure_date: date
     departure_time: str   # e.g. "07h40"
     arrival_time: str     # e.g. "09h10"
-    price: float          # BRL
+    price: float          # BRL — 0.0 para voos de milhas
     is_direct: bool
-    stops: int            # 0 or 1
+    stops: int            # 0 ou 1
     booking_url: str
 
+    # Campos de milhas — None para voos em dinheiro
+    miles: Optional[int] = None
+    taxes_brl: Optional[float] = None  # reservado, sempre None por ora
+
+    @property
+    def is_miles_flight(self) -> bool:
+        return self.miles is not None
+
     def cache_key(self) -> str:
+        if self.miles is not None:
+            miles_floor = (self.miles // 1000) * 1000
+            return f"{self.airline}|{self.origin}|{self.destination}|{self.departure_date}|{miles_floor}mi"
         price_floor = math.floor(self.price / 10) * 10
         return f"{self.airline}|{self.origin}|{self.destination}|{self.departure_date}|{price_floor}"
 
