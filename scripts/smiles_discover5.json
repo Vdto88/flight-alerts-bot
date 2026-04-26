@@ -1,0 +1,965 @@
+{
+  "responses": [
+    {
+      "url": "https://flightavailability-prd.smiles.com.br/flight/category",
+      "status": 200,
+      "body": "{\"flightCategoryList\":[{\"code\":\"1-1Q8B3OH3\",\"name\":\"Praia\",\"content\":{\"Cover_Image\":\"https://media-cms-prd.smiles.com.br/842226a3-c93a-4dc0-a4b8-86ca9ae7c633?size=150x310&type=jpg\",\"Description\":\"<p>A verdadeira viagem de descobrimento não consiste em procurar novas paisagens e sim ter novos olhos<br><ins>Marcel Proust</ins></p>\\n\",\"Desktop_Background_Image\":\"https://media-cms-prd.smiles.com.br/bad1b7b3-ba7a-496b-bc7e-1805ed2bd012?size=1360x650&type=jpg\",\"Mobile_Background_Image\":\"https://media-cms-prd.smiles.com.br/9b97953a-f976-4833-b3af-f0a9ca5c67dc?size=340x744&type=jpg\",\"Is_Spotlight\":\"1\"}},{\"code\":\"1-1Q8B3OH1\",\"name\":\"Frio\",\"content\":{\"Cover_Image\":\"https://media-cms-prd.smiles.com.br/a3662713-bb6c-4106-876d-06d976d8421d?size=316x150&type=png\",\"Description\":\"<p>Em algum lugar alguma coisa incrível está esperando para ser conhecida<br><ins>Carl Sagan</ins></p>\\n\",\"Desktop_Background_Image\":\"https://media-cms-prd.smiles.com.br/65fad3c9-3edc-40a2-9735-986b47228b29?size=1360x650&type=jpg\",\"Mobile_Background_Image\":\"https://media-cms-prd.smiles.com.br/a8567e58-6400-402e-9759-81751a412dde?size=340x744&type=jpg\"}},{\"code\":\"1-1Q8B3OH2\",\"name\":\"História\",\"content\":{\"Cover_Image\":\"https://media-cms-prd.smiles.com.br/b9bc88d8-eb15-4180-ad8f-7442356e75ee?size=150x150&type=jpg\",\"Description\":\"<p>As pessoas não fazem as viagens. As viagens é que fazem as pessoas<br><ins>John Steinbeck</ins></p>\\n\",\"Desktop_Background_Image\":\"https://media-cms-prd.smiles.com.br/bb5cd01d-6259-4f10-b302-da8eb0d407a1?size=1360x650&type=jpg\",\"Mobile_Background_Image\":\"https://media-cms-prd.smiles.com.br/d2948a56-c750-4c16-a536-5a121be9b8c8?size=340x744&type=jpg\"}},{\"code\":\"1-1Q8B3OH4\",\"name\":\"Natureza\",\"content\":{\"Cover_Image\":\"https://media-cms-prd.smiles.com.br/23c146f3-39e3-4442-a487-b0824ad2d2c4?size=150x150&type=jpg\",\"Description\":\"<p>Vá até onde puder ver. Quando chegar, poderá ver ainda mais longe<br><ins>Goethe</ins></p>\\n\",\"Desktop_Background_Image\":\"https://media-cms-prd.smiles.com.br/"
+    }
+  ],
+  "requests": [
+    {
+      "url": "https://www.smiles.com.br/passagens-aereas?originAirportCode=CNF&destinationAirportCode=IGU&departureDate=15/07/2026&adults=1&tripType=2&cabinType=all",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/passagens",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/dd/rum-init-smiles.js",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/smiles-theme/1.4.287-6262/js/jquery-min.js",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/smiles-theme/1.4.287-6262/js/jquery-ui.min.js",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-theme/css/aui.css?browserId=other&themeId=smiles_WAR_smilestheme&minifierType=css&languageId=pt_BR&b=6210&t=1776272326000",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/html/css/main.css?browserId=other&themeId=smiles_WAR_smilestheme&minifierType=css&languageId=pt_BR&b=6210&t=1441805640000",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/html/portlet/journal_content/css/main.css?browserId=other&themeId=smiles_WAR_smilestheme&minifierType=css&languageId=pt_BR&b=6210&t=1776720885908",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/html/portlet/asset_publisher/css/main.css?browserId=other&themeId=smiles_WAR_smilestheme&minifierType=css&languageId=pt_BR&b=6210&t=1776720885908",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/css/FlightSearchPortlet.css?browserId=other&themeId=smiles_WAR_smilestheme&minifierType=css&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/css/rSlider.min.css?browserId=other&themeId=smiles_WAR_smilestheme&minifierType=css&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/css/busca.css?browserId=other&themeId=smiles_WAR_smilestheme&minifierType=css&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/css/aba-busca-carros.css?browserId=other&themeId=smiles_WAR_smilestheme&minifierType=css&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/notifications-portlet/notifications/css/main.css?browserId=other&themeId=smiles_WAR_smilestheme&minifierType=css&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/html/js/barebone.jsp?browserId=other&themeId=smiles_WAR_smilestheme&colorSchemeId=01&minifierType=js&minifierBundleId=javascript.barebone.files&languageId=pt_BR&b=6210&t=1608220128000",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-theme/css/main.css?browserId=other&themeId=smiles_WAR_smilestheme&minifierType=css&languageId=pt_BR&b=6210&t=1776272326000",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/smiles-theme/1.4.287-6262/css/smiles-theme.min.css?t=1776272326000",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/WBWUnI/b/V/Gf8tVkrUQ8eS/ENc7LXzQcfQ0VQOEp3/WlluOA/KTEvQ2/gwcjIB",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/WBWUnI/b/V/Gf8tVkrUQ8eS/rDc7LXcEz99L/R3lyOA/HUUCXE/dbP0IQAg?v=4cdd7d3a-a014-22c1-973b-7ae6b8590210",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/image/journal/article?img_id=126995955&t=1776973922252",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/documents/10184/66676063/smiles.svg/e9ea50a8-b5cb-4654-aff5-2978563d8ecc",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/image/journal/article?img_id=126995972&t=1776973925446",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/documents/10184/85315490/AVIAO.png/4942d16f-3484-5093-d79c-e2220116af85?t=1629466524148",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/documents/10184/0/icone-fio-transparente/d2f905aa-4af9-08a0-aba0-ad8e62c829fd?t=1599645024172",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/image/journal/article?img_id=141990288&t=1776971870457",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/image/journal/article?img_id=141960944&t=1776437162839",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/image/journal/article?img_id=141493947&t=1775062756937",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/image/journal/article?img_id=141957209&t=1776195813956",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/image/journal/article?img_id=139495485&t=1768339374898",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/image/journal/article?img_id=139495487&t=1768339376797",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/image/journal/article?img_id=137461333&t=1763406113937",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/image/journal/article?img_id=137461335&t=1763406115833",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-theme/images/progress_bar/loading_animation.gif",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/ns/canta-default/reset.css",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/ns/canta-default/buttons.css",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/ns/owl-carrousel/owl.carousel.min.js",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/ns/owl-carrousel/owl.carousel.min.css",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/ns/owl-carrousel/owl.theme.default.min.css",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/ns/canta-acordeon/_js/canta-acordeon.min.js",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/ns/canta-acordeon/_css/style.css",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/ns/canta-select-picker/_js/canta.select.picker.min.js",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/ns/canta-select-picker/_css/canta.select-picker.mim.css",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/ns/tab_panel/js/script.js",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/ns/tab_panel/css/style.css",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/ns/swiper/swiper.min.js",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/ns/swiper/swiper.min.css",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/ns/tween/TweenMax.min.js",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/hf/SmilesSearch.js?t=1776272326000",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-theme/images/loading/loading_novo.gif",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-theme/images/svg/icons/ic-baggage-rules-golbag.svg",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-default-theme/img/bt-close-code.png",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-theme/images/svg/home-widget/icone-aviao.svg",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-theme/images/login/lightbox-close.png",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-theme/images/checkout/snm-mdl-close.png",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/smiles-theme/1.4.287-6262/js/base-plugins.min.js?t=1776272326000",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/rSlider.min.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/jquery-ui-config.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/ldclient.min.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/BookingController.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/search/SearchFlightController.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/MilesBalanceSearchController.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/CalendarController.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/availability/AwsClientController.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/plugins/apigClient.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/plugins/lib/apiGatewayCore/apiGatewayClient.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/plugins/lib/apiGatewayCore/sigV4Client.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/plugins/lib/apiGatewayCore/simpleHttpClient.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/plugins/lib/apiGatewayCore/utils.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/plugins/lib/axios/dist/axios.standalone.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/plugins/lib/CryptoJS/rollups/sha256.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/plugins/lib/CryptoJS/rollups/hmac-sha256.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/plugins/lib/CryptoJS/components/enc-base64.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/plugins/lib/CryptoJS/components/hmac.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/plugins/lib/url-template/url-template.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/search/SearchHotelController.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/search/SearchCarController.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/gtm/gtm_uber.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/uber/UberUtils.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/uber/UberRedeemController.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/uber/UberAccrualController.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-booking-portlet/js/IngressoRapidoController.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-login-portlet/js/BoxLoginController.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-login-portlet/js/CredentialsAwsController.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-login-portlet/js/LoginController.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-login-portlet/js/userUtilitiesController.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-login-portlet/js/smiles.portal.commons.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-login-portlet/js/handlebars-helpers-commons.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-login-portlet/js/jquery.smiles.renderbox.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-login-portlet/js/plugins/aws-sdk.min.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-login-portlet/js/PasswordResetController.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-login-portlet/js/SocialNetwork.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-login-portlet/js/GTMController.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-login-portlet/js/SmoochConfig.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-login-portlet/js/LightBoxController.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-login-portlet/js/OutletLightBoxController.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-login-portlet/js/plugins/CryptoJSv3.1.2/sha256.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/notifications-portlet/notifications/js/main.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776720884052",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-theme/js/main.js?browserId=other&minifierType=js&languageId=pt_BR&b=6210&t=1776272326000",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/mfe-apps/check-env.txt",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-theme/css/smiles-theme-admin.min.css",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/smiles-theme/1.4.287-6262/css/plugins/slick.css",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/smiles-theme/1.4.287-6262/css/plugins/bootstrap-select.min.css",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/smiles-theme/1.4.287-6262/images/portlet/options_borderless.png",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/smiles-theme/1.4.287-6262/css/fonts/fontawesome-alloy.woff",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/WBWUnI/b/V/Gf8tVkrUQ8eS/ENc7LXzQcfQ0VQOEp3/WlluOA/KTEvQ2/gwcjIB",
+      "method": "POST",
+      "headers": {
+        "content-type": "text/plain;charset=UTF-8"
+      }
+    },
+    {
+      "url": "https://static.smiler.com.br/bs-theme/assets/logos/smiles/lg-smiles-orange.svg",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/documents/10184/66676063/smiles.svg/e9ea50a8-b5cb-4654-aff5-2978563d8ecc",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/documents/10184/0/icone-fio-transparente/d2f905aa-4af9-08a0-aba0-ad8e62c829fd?t=1599645024172",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/smiles-theme/1.4.287-6262/images/svg/home-widget/tooltips/gol.svg",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/smiles-theme/1.4.287-6262/css/sprite/img/smiles-icons.svg",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/smiles-theme/1.4.287-6262/images/svg/home-widget/icone-aviao.svg",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/smiles-theme/1.4.287-6262/images/svg/home-widget/seta.svg",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/smiles-theme/1.4.287-6262/images/svg/home-widget/icone-localizacao.svg",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/combo/?browserId=other&minifierType=&languageId=pt_BR&b=6210&t=1608220128000&/html/js/aui/widget-base/assets/skins/sam/widget-base.css&/html/js/aui/tabview/assets/skins/sam/tabview.css",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/mfe-apps/check-env.txt",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/documents/d/guest/arrow-back",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/documents/d/guest/magnfying-glass-grey",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/documents/d/guest/close_icon",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/smiles-theme/1.4.287-6262/fonts/nunito-regular-webfont.woff2",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/combo/?browserId=other&minifierType=&languageId=pt_BR&b=6210&t=1608220128000&/html/js/aui/base-core/base-core-min.js&/html/js/aui/base-observable/base-observable-min.js&/html/js/aui/color-base/color-base-min.js&/html/js/aui/base-build/base-build-min.js&/html/js/aui/widget-parent/widget-parent-min.js&/html/js/aui/widget-child/widget-child-min.js&/html/js/aui/tabview-base/tabview-base-min.js&/html/js/aui/async-queue/async-queue-min.js&/html/js/aui/gesture-simulate/gesture-simulate-min.js&/html/js/aui/tabview/tabview-min.js&/html/js/aui/aui-widget-cssclass/aui-widget-cssclass-min.js&/html/js/aui/aui-widget-toggle/aui-widget-toggle-min.js&/html/js/aui/aui-tabview/aui-tabview-min.js",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-theme/fonts/nunito-regular-webfont.woff2",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://ldrelay-blue.smiles.com.br/sdk/evalx/5ff64893991a4c0aa4974fc7/users/eyJrZXkiOiJCTFVFIn0%3D",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/combo/?browserId=other&minifierType=&languageId=pt_BR&b=6210&t=1608220128000&/html/js/aui/event-touch/event-touch-min.js&/html/js/aui/event-move/event-move-min.js&/html/js/aui/event-flick/event-flick-min.js&/html/js/aui/event-valuechange/event-valuechange-min.js&/html/js/aui/event-tap/event-tap-min.js",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/hf-contents/smiles-header-smiles.json?v=2026042615",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/hf-contents/smiles-header-viagem-passagem-aluguel-carro.json?v=2026042615",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/hf-contents/smiles-header-miles1.json?v=2026042615",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/hf-contents/smiles-header-miles2.json?v=2026042615",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/hf-contents/smiles-header-shopping.json?v=2026042615",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/hf-contents/smiles-header-servicos.json?v=2026042615",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/hf-contents/smiles-header-smiles.json?v=2026042615",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/hf-contents/smiles-header-viagem-passagem-aluguel-carro.json?v=2026042615",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/hf-contents/smiles-header-miles1.json?v=2026042615",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/hf-contents/smiles-header-miles2.json?v=2026042615",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/hf-contents/smiles-header-package1.json?v=2026042615",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/hf-contents/smiles-header-package2.json?v=2026042615",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/hf-contents/smiles-header-shopping.json?v=2026042615",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/hf-contents/smiles-header-servicos.json?v=2026042615",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/combo/?browserId=other&minifierType=&languageId=pt_BR&b=6210&t=1608220128000&/html/js/aui/cssbutton/cssbutton-min.css&/html/js/aui/widget-modality/assets/skins/sam/widget-modality.css&/html/js/aui/widget-stack/assets/skins/sam/widget-stack.css&/html/js/aui/resize-base/assets/skins/sam/resize-base.css",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/passagens?p_p_id=smilesloginportlet_WAR_smilesloginportlet&p_p_lifecycle=2&p_p_state=normal&p_p_mode=view&p_p_resource_id=renderLogin&p_p_cacheability=cacheLevelPage",
+      "method": "GET",
+      "headers": {
+        "accept": "*/*"
+      }
+    },
+    {
+      "url": "https://www.smiles.com.br/documents/10184/0/icone-fio-transparente/d2f905aa-4af9-08a0-aba0-ad8e62c829fd?t=1599645024172",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/smiles-theme/1.4.287-6262/images/svg/home-widget/arrow.svg",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/smiles-theme/1.4.287-6262/images/svg/home-widget/icone-ida-volta.svg",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/combo/?browserId=other&minifierType=&languageId=pt_BR&b=6210&t=1608220128000&/html/js/aui/widget-autohide/widget-autohide-min.js&/html/js/aui/button-core/button-core-min.js&/html/js/aui/button-plugin/button-plugin-min.js&/html/js/aui/widget-stdmod/widget-stdmod-min.js&/html/js/aui/widget-buttons/widget-buttons-min.js&/html/js/aui/widget-modality/widget-modality-min.js&/html/js/aui/widget-position/widget-position-min.js&/html/js/aui/widget-position-align/widget-position-align-min.js&/html/js/aui/widget-position-constrain/widget-position-constrain-min.js&/html/js/aui/widget-stack/widget-stack-min.js&/html/js/aui/dd-ddm-base/dd-ddm-base-min.js&/html/js/aui/dd-drag/dd-drag-min.js&/html/js/aui/dd-plugin/dd-plugin-min.js&/html/js/aui/dd-constrain/dd-constrain-min.js&/html/js/aui/dd-ddm/dd-ddm-min.js&/html/js/aui/dd-ddm-drop/dd-ddm-drop-min.js&/html/js/aui/dd-drop/dd-drop-min.js&/html/js/aui/dd-drop-plugin/dd-drop-plugin-min.js&/html/js/aui/dd-delegate/dd-delegate-min.js&/html/js/aui/resize-base/resize-base-min.js",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/combo/?browserId=other&minifierType=&languageId=pt_BR&b=6210&t=1608220128000&/html/js/aui/resize-plugin/resize-plugin-min.js&/html/js/aui/button/button-min.js&/html/js/aui/button-group/button-group-min.js&/html/js/aui/aui-button-core/aui-button-core-min.js&/html/js/aui/aui-toolbar/aui-toolbar-min.js&/html/js/aui/aui-widget-toolbars/aui-widget-toolbars-min.js&/html/js/aui/aui-modal/aui-modal-min.js",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://c.go-mpulse.net/api/config.json?key=VKHNQ-4R7CE-B546X-STSHF-KSTXB&d=www.smiles.com.br&t=5924056&v=1.792.0&sl=0&si=294b7658-78cb-49a6-b46c-2576ff91ad93-te3x7f&plugins=AK,ConfigOverride,Continuity,PageParams,IFrameDelay,AutoXHR,SPA,History,Angular,Backbone,Ember,RT,CrossDomain,BW,PaintTiming,NavigationTiming,ResourceTiming,Memory,CACHE_RELOAD,Errors,TPAnalytics,UserTiming,Akamai,Early,EventTiming,BFCache,LOGN&acao=&ak.ai=1039706",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/combo/?browserId=other&minifierType=&languageId=pt_BR&b=6210&t=1608220128000&/html/js/aui/panel/assets/skins/sam/panel.css",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "blob:https://www.smiles.com.br/2e401ea0-dfb0-4566-932b-f442bca6f695",
+      "method": "GET",
+      "headers": {
+        "accept": "*/*"
+      }
+    },
+    {
+      "url": "https://www.smiles.com.br/combo/?browserId=other&minifierType=&languageId=pt_BR&b=6210&t=1608220128000&/html/js/aui/panel/panel-min.js",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/mfe-apps/check-env.txt",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/mfe-apps/check-env.txt",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/html/js/liferay/available_languages.jsp?browserId=other&themeId=smiles_WAR_smilestheme&colorSchemeId=01&minifierType=js&languageId=pt_BR&b=6210&t=1608220128000",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/combo/?browserId=other&minifierType=&languageId=pt_BR&b=6210&t=1608220128000&/html/js/liferay/language.js&/html/js/aui/transition/transition-min.js&/html/js/aui/querystring-stringify/querystring-stringify-min.js&/html/js/aui/cookie/cookie-min.js&/html/js/liferay/session.js&/html/js/aui/aui-io-request/aui-io-request-min.js&/html/js/liferay/ajax_session.js",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://ldrelay-blue.smiles.com.br/sdk/goals/5ff64893991a4c0aa4974fc7",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://ldrelay-blue.smiles.com.br/sdk/evalx/5ff64893991a4c0aa4974fc7/users/eyJrZXkiOiJodHRwczovL3d3dy5zbWlsZXMuY29tLmJyIn0",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/WBWUnI/b/V/Gf8tVkrUQ8eS/ENc7LXzQcfQ0VQOEp3/WlluOA/KTEvQ2/gwcjIB",
+      "method": "POST",
+      "headers": {
+        "content-type": "text/plain;charset=UTF-8"
+      }
+    },
+    {
+      "url": "https://www.smiles.com.br/combo/?browserId=other&minifierType=&languageId=pt_BR&b=6210&t=1608220128000&/html/js/aui/aui-parse-content/aui-parse-content-min.js",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://ldrelay-blue.smiles.com.br/sdk/goals/635fd4e0a51b7a0bf4d700d8",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://ldrelay-blue.smiles.com.br/sdk/evalx/635fd4e0a51b7a0bf4d700d8/users/eyJraW5kIjoidXNlcnMiLCJrZXkiOiJleUpyWlhraU9pSmtaWFkySW4wPSJ9",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/passagens?p_p_id=smilesloginportlet_WAR_smilesloginportlet&p_p_lifecycle=2&p_p_state=normal&p_p_mode=view&p_p_resource_id=saveCredentials&p_p_cacheability=cacheLevelPage",
+      "method": "POST",
+      "headers": {
+        "accept": "application/json, text/javascript, */*; q=0.01",
+        "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+      }
+    },
+    {
+      "url": "https://www.smiles.com.br/c/portal/render_portlet?p_l_id=84153806&p_p_id=smilesuberredeemportlet_WAR_smilesbookingportlet_INSTANCE_f4PjCAGc3fPA&p_p_lifecycle=0&p_t_lifecycle=0&p_p_state=normal&p_p_mode=view&p_p_col_id=_118_INSTANCE_2Y6rlXOSJNm3__column-2&p_p_col_pos=0&p_p_col_count=2&p_p_isolated=1&currentURL=%2Fpassagens",
+      "method": "POST",
+      "headers": {
+        "accept": "text/html, */*",
+        "content-type": "text/plain;charset=UTF-8"
+      }
+    },
+    {
+      "url": "https://www.smiles.com.br/c/portal/render_portlet?p_l_id=84153806&p_p_id=smilescarsearchportlet_WAR_smilesbookingportlet&p_p_lifecycle=0&p_t_lifecycle=0&p_p_state=normal&p_p_mode=view&p_p_col_id=_118_INSTANCE_ZA9jXZOXBMKV__column-3&p_p_col_pos=0&p_p_col_count=1&p_p_isolated=1&currentURL=%2Fpassagens",
+      "method": "POST",
+      "headers": {
+        "accept": "text/html, */*",
+        "content-type": "text/plain;charset=UTF-8"
+      }
+    },
+    {
+      "url": "https://www.smiles.com.br/c/portal/render_portlet?p_l_id=84153806&p_p_id=smileshotelsearchportlet_WAR_smilesbookingportlet&p_p_lifecycle=0&p_t_lifecycle=0&p_p_state=normal&p_p_mode=view&p_p_col_id=_118_INSTANCE_ZA9jXZOXBMKV__column-2&p_p_col_pos=0&p_p_col_count=1&p_p_isolated=1&currentURL=%2Fpassagens",
+      "method": "POST",
+      "headers": {
+        "accept": "text/html, */*",
+        "content-type": "text/plain;charset=UTF-8"
+      }
+    },
+    {
+      "url": "https://www.smiles.com.br/c/portal/render_portlet?p_l_id=84153806&p_p_id=smilesuberaccrualportlet_WAR_smilesbookingportlet_INSTANCE_440AHrpBmNG3&p_p_lifecycle=0&p_t_lifecycle=0&p_p_state=normal&p_p_mode=view&p_p_col_id=_118_INSTANCE_2Y6rlXOSJNm3__column-1&p_p_col_pos=0&p_p_col_count=2&p_p_isolated=1&currentURL=%2Fpassagens",
+      "method": "POST",
+      "headers": {
+        "accept": "text/html, */*",
+        "content-type": "text/plain;charset=UTF-8"
+      }
+    },
+    {
+      "url": "https://www.smiles.com.br/c/portal/render_portlet?p_l_id=84153806&p_p_id=smilesingressorapidoportlet_WAR_smilesbookingportlet&p_p_lifecycle=0&p_t_lifecycle=0&p_p_state=normal&p_p_mode=view&p_p_col_id=_118_INSTANCE_ZA9jXZOXBMKV__column-5&p_p_col_pos=0&p_p_col_count=1&p_p_isolated=1&currentURL=%2Fpassagens",
+      "method": "POST",
+      "headers": {
+        "accept": "text/html, */*",
+        "content-type": "text/plain;charset=UTF-8"
+      }
+    },
+    {
+      "url": "https://www.smiles.com.br/documents/10184/0/icone-fio-transparente/d2f905aa-4af9-08a0-aba0-ad8e62c829fd?t=1599645024172",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.smiler.com.br/smiles-theme/1.4.287-6262/js/extra-plugins.min.js?t=1776272326000",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://flightavailability-prd.smiles.com.br/flight/category",
+      "method": "GET",
+      "headers": {
+        "accept": "application/json, text/javascript, */*; q=0.01",
+        "x-api-key": "aJqPU7xNHl9qN3NVZnPaJ208aPo2Bh2p2ZV844tw"
+      }
+    },
+    {
+      "url": "https://product-config-service-blue.smiles.com.br/getProdConfig?ProductConfigId=club-agent-zd-conf",
+      "method": "GET",
+      "headers": {
+        "accept": "application/json, text/javascript, */*; q=0.01"
+      }
+    },
+    {
+      "url": "https://static.smiler.com.br/smiles-theme/1.4.287-6262/fonts/nunito-bold-webfont.woff2",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://cdn.cookielaw.org/logos/2f980304-3780-4365-af8e-169de13b4d42/897605cd-d164-4224-b85b-7b6072212b79/64f8a0ca-0030-4d18-8c3f-95077bae3d6b/smiles-logo.png",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-theme/fonts/nunito-bold-webfont.woff2",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/WBWUnI/b/V/Gf8tVkrUQ8eS/rDc7LXcEz99L/R3lyOA/HUUCXE/dbP0IQAg",
+      "method": "POST",
+      "headers": {
+        "content-type": "application/json"
+      }
+    },
+    {
+      "url": "https://www.google-analytics.com/g/collect?v=2&tid=G-BBTY3LETEV&gtm=45je64m2v9187883301z871476682za20gzb71476682zd71476682&_p=1777216736302&gcd=13l3l3l3l1l1&npa=0&dma=0&_eu=EA&are=1&cid=404527739.1777216737&frm=0&ir=1&pscdl=noapi&rcb=14&sr=1280x720&uaa=x86&uab=64&uafvl=HeadlessChrome%3B143.0.7499.4%7CChromium%3B143.0.7499.4%7CNot%2520A(Brand%3B24.0.0.0&uam=&uamb=0&uap=Windows&uapv=10.0&uaw=0&ul=pt-br&_s=1&tag_exp=0~115616985~115938466~115938468~117266401~117512542~118012008~118167058&uid=&sid=1777216737&sct=1&seg=0&dl=https%3A%2F%2Fwww.smiles.com.br%2Fpassagens&dt=Passagens%20A%C3%A9reas%20-%20Smiles&en=page_view&_fv=1&_nsi=1&_ss=2&tfd=6962",
+      "method": "POST",
+      "headers": {}
+    },
+    {
+      "url": "https://www.google.com/measurement/conversion?random=1777216737634&cv=11&tid=G-L25DPPG37X&fst=1777216737634&fmt=8&en=session_start&gtm=45je64m2v886685129z871476682za20gzb71476682zd71476682xec&gcd=13l3l3l3l1l1&dma=0&tag_exp=0~115938466~115938469~117266401~117512542~118463262&u_w=1280&u_h=720&url=https%3A%2F%2Fwww.smiles.com.br%2Fpassagens&gacid=404527739.1777216737&frm=0&tiba=Passagens%20A%C3%A9reas%20-%20Smiles&npa=0&pscdl=noapi&auid=14703485.1777216738&uaa=x86&uab=64&uafvl=HeadlessChrome%3B143.0.7499.4%7CChromium%3B143.0.7499.4%7CNot%2520A(Brand%3B24.0.0.0&uamb=0&uam=&uap=Windows&uapv=10.0&uaw=0&rcb=15",
+      "method": "POST",
+      "headers": {}
+    },
+    {
+      "url": "https://analytics.google.com/g/collect?v=2&tid=G-L25DPPG37X&gtm=45je64m2v886685129z871476682za20gzb71476682zd71476682&_p=1777216736302&_gaz=1&gcd=13l3l3l3l1l1&npa=0&dma=0&ecid=1606835369&_eu=EAAAAGA&_prs=ok&are=1&cid=404527739.1777216737&ec_mode=a&frm=0&ir=1&pscdl=noapi&rcb=15&sr=1280x720&uaa=x86&uab=64&uafvl=HeadlessChrome%3B143.0.7499.4%7CChromium%3B143.0.7499.4%7CNot%2520A(Brand%3B24.0.0.0&uam=&uamb=0&uap=Windows&uapv=10.0&uaw=0&ul=pt-br&_s=1&tag_exp=0~115938466~115938469~117266401~117512542~118463262&uid=&sid=1777216737&sct=1&seg=0&dl=https%3A%2F%2Fwww.smiles.com.br%2Fpassagens&dt=Passagens%20A%C3%A9reas%20-%20Smiles&en=page_view&_fv=1&_ss=2&ep.user_id_dimension=&ep.prod_type=&tfd=7252",
+      "method": "POST",
+      "headers": {}
+    },
+    {
+      "url": "https://www.google.com/measurement/1p-conversion/?random=1177146529&cv=11&tid=G-L25DPPG37X&fst=1777216737634&fmt=8&en=session_start&gtm=45je64m2v886685129z871476682za20gzb71476682zd71476682xec&gcd=13l3l3l3l1l1&dma=0&tag_exp=0~115938466~115938469~117266401~117512542~118463262&u_w=1280&u_h=720&url=https%3A%2F%2Fwww.smiles.com.br%2Fpassagens&gacid=404527739.1777216737&frm=0&tiba=Passagens%20A%C3%A9reas%20-%20Smiles&npa=0&pscdl=noapi&auid=14703485.1777216738&uaa=x86&uab=64&uafvl=HeadlessChrome%3B143.0.7499.4%7CChromium%3B143.0.7499.4%7CNot%2520A(Brand%3B24.0.0.0&uamb=0&uam=&uap=Windows&uapv=10.0&uaw=0&rcb=15&ct_cookie_present=false&crd=CLTesQII8t-xAgit4bECCKG4sQIIscGxAgiwwbECCLHDsQIIisWxAgjCybECCLTGsQIIk9qxAgjb3LECCIfbsQII08WxAgjrzLECCO3OsQII1c-xAgj02rECCJfUsQIIyduxAgix4bECCLPhsQIIpt2xAgiw3rECCIDbsQI&fsk=ChEI8O-2zwYQq6Kw9Lep-82dARIsAG5O4mXP02L_mE60erAADjnMfSShSHGp74IXr0X9k4h2kQ3V2sqlOpchZxoaAtrk&pscrd=IhMI0qeio-iLlAMVz2i4BB0SwTcYMgwIA2IICAAQABgAIAAyDAgEYggIABAAGAAgADIMCAdiCAgAEAAYACAAMgwICGIICAAQABgAIAAyDAgJYggIABAAGAAgADIMCApiCAgAEAAYACAAMgwIAmIICAAQABgAIAAyDAgLYggIABAAGAAgADIMCBViCAgAEAAYACAAMgwIH2IICAAQABgAIAAyDAgTYggIABAAGAAgADIMCBJiCAgAEAAYACAAOhpodHRwczovL3d3dy5zbWlsZXMuY29tLmJyL0JUQ2hFSThPLTJ6d1lRNWNMVV8tTFprcXFqQVJJcUFGQXR4OTNfTjBZb2VHY3JjMGF1VVdUOXNvMFcyYjZsZk9YSzMxRm9nbnh3RWFfOXgyMFFXX0lGegwICWIICAAQABgAIAA",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/combo/?browserId=other&minifierType=&languageId=pt_BR&b=6210&t=1608220128000&/html/js/aui/autocomplete-list/assets/skins/sam/autocomplete-list.css",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://static.ingressorapido.com.br/site/smiles/partner-search.json",
+      "method": "GET",
+      "headers": {
+        "accept": "application/json, text/javascript, */*; q=0.01"
+      }
+    },
+    {
+      "url": "blob:https://www.smiles.com.br/29fbc125-a620-41f7-864d-608953d58487",
+      "method": "GET",
+      "headers": {
+        "accept": "*/*"
+      }
+    },
+    {
+      "url": "https://www.smiles.com.br/combo/?browserId=other&minifierType=&languageId=pt_BR&b=6210&t=1608220128000&/html/js/aui/autocomplete-list/lang/autocomplete-list.js&/html/js/aui/escape/escape-min.js&/html/js/aui/autocomplete-base/autocomplete-base-min.js&/html/js/aui/shim-plugin/shim-plugin-min.js&/html/js/aui/autocomplete-list/autocomplete-list-min.js&/html/js/aui/text-data-accentfold/text-data-accentfold-min.js&/html/js/aui/text-accentfold/text-accentfold-min.js&/html/js/aui/text-data-wordbreak/text-data-wordbreak-min.js&/html/js/aui/text-wordbreak/text-wordbreak-min.js&/html/js/aui/autocomplete-filters-accentfold/autocomplete-filters-accentfold-min.js&/html/js/aui/autocomplete-list-keys/autocomplete-list-keys-min.js",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-theme/images/smiles192.png",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/smiles-theme/images/smooch/smooch-icon.png",
+      "method": "GET",
+      "headers": {}
+    },
+    {
+      "url": "https://www.smiles.com.br/WBWUnI/b/V/Gf8tVkrUQ8eS/rDc7LXcEz99L/R3lyOA/HUUCXE/dbP0IQAg",
+      "method": "POST",
+      "headers": {
+        "content-type": "application/json"
+      }
+    }
+  ]
+}

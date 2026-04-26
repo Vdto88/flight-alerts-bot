@@ -1,9 +1,10 @@
 import asyncio
+import calendar
 import logging
 import os
 import random
-from datetime import date, timedelta
-from typing import List, Optional
+from datetime import date, datetime, timedelta
+from typing import List
 
 from playwright.async_api import async_playwright, Browser
 
@@ -11,14 +12,24 @@ from airlines.base import Flight, FlightSearcher
 
 logger = logging.getLogger(__name__)
 
-# NOTE: The historical Smiles URL /emissao-passagem-com-milhas now returns 404.
-# The active search page is /passagens-aereas. However, loading this URL
-# does not automatically trigger the flight search API — the SPA requires
-# form interaction (fill + submit). The current implementation captures any
-# JSON intercepted from flightavailability-prd.smiles.com.br; if no response
-# is captured, it returns []. A future improvement should add form-fill logic.
+# NOTE: Smiles migrated from /passagens-aereas (Liferay portlet) to a React MFE
+# at /mfe/emissao-passagem. The new search API is api-air-flightsearch-blue.smiles.com.br.
+# The MFE page auto-triggers the flight search when loaded with correct URL params
+# (tripType, originAirport, destinationAirport, departureDate as Unix ms timestamp).
+#
+# BLOCKED: Akamai Bot Manager (bm_ss/bm_s/bm_sz/_abck cookies) returns HTTP 406
+# for all headless Playwright requests to api-air-flightsearch-blue, detected via
+# sec-ch-ua: "HeadlessChrome". Launching with channel="chrome" does not bypass it.
+# Form selectors for /passagens-aereas (legacy fallback, also blocked for search):
+#   origin: #inputOrigin, destination: #inputDestination,
+#   date: #_smilesflightsearchportlet_WAR_smilesbookingportlet_departure_date,
+#   submit: #submitFlightSearch (hidden until #inputOrigin is clicked to expand form)
+#
+# _search_date() currently returns [] for all requests due to this block.
 _SEARCH_BASE = "https://www.smiles.com.br/passagens-aereas"
-_API_HOST = "flightavailability-prd.smiles.com.br"
+_MFE_BASE = "https://www.smiles.com.br/mfe/emissao-passagem"
+_API_HOST = "api-air-flightsearch-blue.smiles.com.br"
+_API_HOST_LEGACY = "flightavailability-prd.smiles.com.br"
 
 
 def _is_headless() -> bool:
@@ -59,11 +70,13 @@ class SmilesMilesSearcher(FlightSearcher):
             browser = await p.chromium.launch(headless=_is_headless())
             try:
                 for d in dates:
-                    flights = await self._search_date(browser, origin, destination, d)
-                    all_flights.extend(flights)
-                    await asyncio.sleep(random.uniform(2, 4))
-            except Exception as e:
-                logger.warning(f"SMILES/search_range {origin}→{destination}: {e}")
+                    try:
+                        flights = await self._search_date(browser, origin, destination, d)
+                        all_flights.extend(flights)
+                        await asyncio.sleep(random.uniform(2, 4))
+                    except Exception as e:
+                        logger.warning(f"SMILES/{origin}→{destination} {d}: erro inesperado: {e}")
+                        continue
             finally:
                 await browser.close()
 
@@ -82,7 +95,10 @@ class SmilesMilesSearcher(FlightSearcher):
         captured: list = []
 
         async def handle_response(response):
-            if _API_HOST in response.url and response.status == 200:
+            if (
+                (_API_HOST in response.url or _API_HOST_LEGACY in response.url)
+                and response.status == 200
+            ):
                 try:
                     data = await response.json()
                     captured.append(data)
@@ -92,18 +108,23 @@ class SmilesMilesSearcher(FlightSearcher):
         page.on("response", handle_response)
 
         try:
-            date_str = departure_date.strftime("%d/%m/%Y")
+            # MFE page auto-triggers the search API when loaded with timestamp param
+            departure_ts = int(
+                calendar.timegm(
+                    datetime(departure_date.year, departure_date.month, departure_date.day).timetuple()
+                )
+            ) * 1000
             url = (
-                f"{_SEARCH_BASE}"
-                f"?originAirportCode={origin}"
-                f"&destinationAirportCode={destination}"
-                f"&departureDate={date_str}"
+                f"{_MFE_BASE}"
+                f"?tripType=2"
+                f"&originAirport={origin}"
+                f"&destinationAirport={destination}"
+                f"&departureDate={departure_ts}"
                 f"&adults=1&children=0&infants=0"
-                f"&tripType=2&cabinType=all"
+                f"&cabinType=all&isFlexibleDateChecked=false"
             )
-            await page.goto(url, timeout=30000)
-            await page.wait_for_load_state("networkidle", timeout=20000)
-            await asyncio.sleep(random.uniform(1, 2))
+            await page.goto(url, timeout=30000, wait_until="domcontentloaded")
+            await asyncio.sleep(random.uniform(8, 12))
         except Exception as e:
             logger.warning(f"SMILES page {origin}→{destination} {departure_date}: {e}")
             return []

@@ -3,7 +3,7 @@ import pytest
 from datetime import date
 from pathlib import Path
 
-FIXTURE = json.loads(Path("tests/fixtures/smiles_sample.json").read_text())
+FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "smiles_sample.json").read_text())
 
 
 def test_parse_extracts_available_fares():
