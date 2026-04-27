@@ -1,27 +1,32 @@
 """
-Coleta cookies Akamai do Smiles via sessão real no navegador.
+Coleta cookies Akamai do Chrome real do usuário.
 
 Como usar:
-  1. Execute: python scripts/harvest_cookies.py
-  2. No Chrome que abrir, faça uma busca de voos normalmente
-  3. Espere a página de resultados carregar (lista de voos aparecer)
-  4. Volte ao terminal e pressione Enter
-  5. Cookies serão salvos e o bot poderá usá-los por ~2h
+  1. No seu Chrome normal, acesse smiles.com.br
+  2. Faça uma busca de voos e espere os resultados aparecerem
+  3. COM O CHROME AINDA ABERTO, execute este script:
+       python scripts/harvest_cookies.py
+  4. Cookies salvos — o bot usa por ~2h
+
+Não precisa fechar o Chrome.
 """
-import asyncio
 import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from playwright.async_api import async_playwright
+try:
+    import browser_cookie3
+except ImportError:
+    print("Instale: pip install browser-cookie3")
+    sys.exit(1)
 
 COOKIES_FILE = Path(__file__).parent / "akamai_cookies.json"
 AKAMAI_NAMES = {"_abck", "ak_bmsc", "bm_sz", "bm_sv", "bm_ss"}
+SMILES_DOMAIN = "smiles.com.br"
 
 
 def _check_abck(value: str) -> str:
-    """Interpreta o resultado do cookie _abck."""
     parts = value.split("~")
     if len(parts) < 2:
         return "formato desconhecido"
@@ -29,86 +34,76 @@ def _check_abck(value: str) -> str:
     if result == "0":
         return "VÁLIDO ✓"
     if result == "-1":
-        return "BOT DETECTADO ✗ — tente navegar mais devagar"
+        return "BOT DETECTADO ✗"
     return f"código {result}"
 
 
-async def main():
-    print("=" * 60)
-    print("  Coletor de cookies Akamai — Smiles")
-    print("=" * 60)
-    print()
-    print("Abrindo Chrome. Instruções:")
-    print("  1. Navegue pelo site normalmente")
-    print("  2. Faça uma busca de voos e espere os resultados")
-    print("  3. Volte aqui e pressione Enter")
-    print()
+def main():
+    print("Lendo cookies do Chrome...")
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=False,
-            args=["--window-size=1280,900", "--start-maximized"],
-        )
-        context = await browser.new_context(
-            user_agent=(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/124.0.0.0 Safari/537.36"
-            )
-        )
-        page = await context.new_page()
-        await page.goto("https://www.smiles.com.br")
-
-        print("Chrome aberto em https://www.smiles.com.br")
+    try:
+        jar = browser_cookie3.chrome(domain_name=SMILES_DOMAIN)
+    except Exception as e:
+        print(f"Erro ao ler cookies do Chrome: {e}")
         print()
-        print("Quando terminar a busca, pressione Enter aqui...")
+        print("Dica: feche todas as abas do Chrome DevTools e tente novamente.")
+        sys.exit(1)
 
-        # Wait for user input without blocking the event loop
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, sys.stdin.readline)
+    # Convert to playwright-compatible format
+    cookies = []
+    for c in jar:
+        if c.name not in AKAMAI_NAMES:
+            continue
+        entry = {
+            "name": c.name,
+            "value": c.value,
+            "domain": c.domain if c.domain else f".{SMILES_DOMAIN}",
+            "path": c.path or "/",
+            "secure": bool(c.secure),
+            "httpOnly": False,
+            "sameSite": "None",
+        }
+        if c.expires:
+            entry["expires"] = c.expires
+        cookies.append(entry)
 
-        # Collect cookies
-        cookies = await context.cookies()
-        akamai = [c for c in cookies if c["name"] in AKAMAI_NAMES]
+    if not cookies:
+        print()
+        print("Nenhum cookie Akamai encontrado para smiles.com.br")
+        print()
+        print("Certifique-se de ter feito uma busca de voos no Chrome antes de rodar este script.")
+        print("Depois tente novamente.")
+        sys.exit(1)
 
-        await browser.close()
-
-    print()
-    print(f"Cookies coletados ({len(akamai)}):")
+    print(f"\nCookies encontrados ({len(cookies)}):")
     abck_ok = False
-    for c in akamai:
+    for c in cookies:
         if c["name"] == "_abck":
             status = _check_abck(c["value"])
             print(f"  _abck: {status}")
-            print(f"    valor: {c['value'][:60]}...")
+            print(f"    valor: {c['value'][:70]}...")
             abck_ok = "VÁLIDO" in status
         else:
             print(f"  {c['name']}: {c['value'][:50]}...")
 
-    if not akamai:
-        print()
-        print("ERRO: Nenhum cookie Akamai encontrado.")
-        print("Certifique-se de ter feito uma busca de voos antes de pressionar Enter.")
-        return
-
     if not abck_ok:
         print()
-        print("AVISO: _abck indica bot detectado.")
-        print("Tente navegar de forma mais natural: role a página, mova o mouse,")
-        print("espere uns segundos antes de fazer a busca.")
-        print("Salvando mesmo assim — pode funcionar parcialmente.")
+        print("AVISO: _abck não está validado (pode não funcionar).")
+        print("Tente fazer a busca no Chrome de forma mais lenta:")
+        print("  - Role a página antes de buscar")
+        print("  - Mova o mouse pelo site")
+        print("  - Espere os resultados carregarem completamente antes de rodar o script")
 
-    # Save with timestamp
     payload = {
         "harvested_at": datetime.now(timezone.utc).isoformat(),
-        "cookies": akamai,
+        "cookies": cookies,
     }
     COOKIES_FILE.write_text(json.dumps(payload, indent=2, ensure_ascii=False))
 
     print()
     print(f"Cookies salvos em: {COOKIES_FILE}")
-    print("O bot usará esses cookies automaticamente por ~2h.")
-    print("Execute novamente quando o bot começar a retornar [] novamente.")
+    print("O bot usará esses cookies automaticamente. Válidos por ~2h.")
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    main()
