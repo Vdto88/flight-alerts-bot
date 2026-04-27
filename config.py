@@ -11,7 +11,7 @@ ROUTES = [
     {"from": "CNF", "to": "GRU", "threshold": 350,  "airlines": ["GOL", "LATAM", "AZUL"]},
     {"from": "GRU", "to": "LIS", "threshold": 2000, "airlines": ["LATAM", "GOL"]},
     {"from": "GRU", "to": "MIA", "threshold": 1500, "airlines": ["LATAM", "GOL"]},
-    {"from": "CNF", "to": "SSA", "threshold": 400,  "airlines": ["GOL", "AZUL"]},
+    {"from": "CNF", "to": "SSA", "threshold": 2000, "airlines": ["GOL", "AZUL", "LATAM"]},
 ]
 
 SEARCH_DAYS_AHEAD: int = 60
