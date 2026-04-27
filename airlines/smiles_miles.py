@@ -1,12 +1,14 @@
 import asyncio
 import calendar
+import json
 import logging
 import os
 import random
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
 from typing import List
 
-from playwright.async_api import async_playwright, Browser
+from playwright.async_api import async_playwright, BrowserContext
 from playwright_stealth import Stealth
 
 from airlines.base import Flight, FlightSearcher
@@ -37,6 +39,30 @@ _MFE_BASE = "https://www.smiles.com.br/mfe/emissao-passagem"
 _API_HOST = "api-air-flightsearch-blue.smiles.com.br"
 _API_HOST_LEGACY = "flightavailability-prd.smiles.com.br"
 _API_KEY = "aJqPU7xNHl9qN3NVZnPaJ208aPo2Bh2p2ZV844tw"
+_COOKIES_FILE = Path(__file__).parent.parent / "scripts" / "akamai_cookies.json"
+_COOKIE_MAX_AGE_SECONDS = 6000  # ~100 min; Akamai cookies last ~2h
+
+
+def _load_akamai_cookies() -> list:
+    """Carrega cookies Akamai salvos pelo harvest_cookies.py, se frescos."""
+    if not _COOKIES_FILE.exists():
+        return []
+    try:
+        payload = json.loads(_COOKIES_FILE.read_text(encoding="utf-8"))
+        harvested_at = datetime.fromisoformat(payload["harvested_at"])
+        age = (datetime.now(timezone.utc) - harvested_at).total_seconds()
+        if age > _COOKIE_MAX_AGE_SECONDS:
+            logger.info(
+                f"SMILES: cookies Akamai expirados ({age/60:.0f} min). "
+                "Execute scripts/harvest_cookies.py novamente."
+            )
+            return []
+        cookies = payload["cookies"]
+        logger.info(f"SMILES: carregando {len(cookies)} cookies Akamai ({age/60:.0f} min de idade)")
+        return cookies
+    except Exception as e:
+        logger.warning(f"SMILES: erro ao ler cookies Akamai: {e}")
+        return []
 
 
 def _is_headless() -> bool:
@@ -54,16 +80,25 @@ def _parse_time(iso_str: str) -> str:
 class SmilesMilesSearcher(FlightSearcher):
     AIRLINE_NAME = "SMILES"
 
+    async def _make_context(self, p) -> "BrowserContext":
+        """Cria browser context com cookies Akamai injetados (se disponíveis)."""
+        browser = await p.chromium.launch(headless=_is_headless())
+        context = await browser.new_context()
+        cookies = _load_akamai_cookies()
+        if cookies:
+            await context.add_cookies(cookies)
+        return context
+
     async def search(self, origin: str, destination: str, departure_date: date) -> List[Flight]:
         async with Stealth().use_async(async_playwright()) as p:
-            browser = await p.chromium.launch(headless=_is_headless())
+            context = await self._make_context(p)
             try:
-                return await self._search_date(browser, origin, destination, departure_date)
+                return await self._search_date(context, origin, destination, departure_date)
             except Exception as e:
                 logger.warning(f"SMILES/{origin}→{destination} {departure_date}: {e}")
                 return []
             finally:
-                await browser.close()
+                await context.browser.close()
 
     async def search_range(
         self, origin: str, destination: str, days_ahead: int = 30, batch_size: int = 1
@@ -74,25 +109,25 @@ class SmilesMilesSearcher(FlightSearcher):
         all_flights: List[Flight] = []
 
         async with Stealth().use_async(async_playwright()) as p:
-            browser = await p.chromium.launch(headless=_is_headless())
+            context = await self._make_context(p)
             try:
                 for d in dates:
                     try:
-                        flights = await self._search_date(browser, origin, destination, d)
+                        flights = await self._search_date(context, origin, destination, d)
                         all_flights.extend(flights)
                         await asyncio.sleep(random.uniform(2, 4))
                     except Exception as e:
                         logger.warning(f"SMILES/{origin}→{destination} {d}: erro inesperado: {e}")
                         continue
             finally:
-                await browser.close()
+                await context.browser.close()
 
         return all_flights
 
     async def _search_date(
-        self, browser: Browser, origin: str, destination: str, departure_date: date
+        self, context: BrowserContext, origin: str, destination: str, departure_date: date
     ) -> List[Flight]:
-        page = await browser.new_page()
+        page = await context.new_page()
         captured: list = []
         blocked_406 = False
 
@@ -110,7 +145,7 @@ class SmilesMilesSearcher(FlightSearcher):
                 blocked_406 = True
                 logger.info(
                     f"SMILES/{origin}→{destination} {departure_date}: "
-                    f"HTTP 406 (Akamai bloqueou) — retornando []"
+                    f"HTTP 406 (Akamai bloqueou) — execute scripts/harvest_cookies.py"
                 )
 
         page.on("response", handle_response)
