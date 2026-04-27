@@ -8,3 +8,4 @@ __pycache__/
 dist/
 .worktrees/
 scripts/akamai_cookies.json
+scripts/smiles_cache.json

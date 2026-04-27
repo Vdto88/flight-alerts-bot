@@ -1,28 +1,33 @@
 """
-Coleta cookies Akamai do Smiles usando o Chrome real via CDP.
+Busca voos no Smiles usando o Chrome real, evitando detecção da Akamai.
 
 Como usar:
   1. Execute: python scripts/harvest_cookies.py
-  2. No Chrome que abrir, navegue normalmente pelo Smiles
-  3. Faça uma busca de voos e espere os resultados aparecerem
-  4. Pressione Enter no terminal
-  5. Cookies salvos — o bot usa por ~2h
+  2. No Chrome que abrir, navegue pelo Smiles por ~15s (role a página)
+  3. Pressione Enter — o script faz as buscas automaticamente
+  4. Resultados salvos em scripts/smiles_cache.json por ~2h
+
+O bot usa o cache automaticamente até ele expirar.
 """
 import asyncio
+import calendar
 import json
 import os
 import subprocess
 import sys
 import tempfile
 import time
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from playwright.async_api import async_playwright
 
-COOKIES_FILE = Path(__file__).parent / "akamai_cookies.json"
-AKAMAI_NAMES = {"_abck", "ak_bmsc", "bm_sz", "bm_sv", "bm_ss"}
-CDP_PORT = 9223  # porta diferente para não conflitar com Chrome já aberto
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from config import MILES_ROUTES, MILES_DAYS_AHEAD
+from airlines.smiles_miles import SmilesMilesSearcher, _API_HOST
+
+CACHE_FILE = Path(__file__).parent / "smiles_cache.json"
+CDP_PORT = 9223
 
 CHROME_CANDIDATES = [
     r"C:\Program Files\Google\Chrome\Application\chrome.exe",
@@ -38,16 +43,47 @@ def find_chrome() -> str | None:
     return None
 
 
-def _check_abck(value: str) -> str:
-    parts = value.split("~")
-    if len(parts) < 2:
-        return "formato desconhecido"
-    result = parts[1]
-    if result == "0":
-        return "VÁLIDO ✓"
-    if result == "-1":
-        return "BOT DETECTADO ✗"
-    return f"código {result}"
+def mfe_url(origin: str, dest: str, departure: date) -> str:
+    ts = int(
+        calendar.timegm(
+            datetime(departure.year, departure.month, departure.day).timetuple()
+        )
+    ) * 1000
+    return (
+        f"https://www.smiles.com.br/mfe/emissao-passagem"
+        f"?tripType=2&originAirport={origin}&destinationAirport={dest}"
+        f"&departureDate={ts}&adults=1&children=0&infants=0"
+        f"&cabinType=all&isFlexibleDateChecked=false"
+    )
+
+
+async def search_one(page, origin: str, dest: str, departure: date) -> list:
+    """Navega para o MFE no Chrome real e captura a resposta da API."""
+    captured = {}
+
+    async def on_response(r):
+        if _API_HOST in r.url and r.status == 200:
+            try:
+                captured["data"] = await r.json()
+            except Exception:
+                pass
+
+    page.on("response", on_response)
+    try:
+        await page.goto(mfe_url(origin, dest, departure), wait_until="domcontentloaded", timeout=30000)
+        # Espera a API responder (máx 20s)
+        for _ in range(20):
+            if "data" in captured:
+                break
+            await asyncio.sleep(1)
+    finally:
+        page.remove_listener("response", on_response)
+
+    if "data" not in captured:
+        return []
+
+    searcher = SmilesMilesSearcher()
+    return searcher._parse(captured["data"], origin, dest, departure)
 
 
 async def main():
@@ -56,17 +92,21 @@ async def main():
         print("Chrome não encontrado. Instale o Google Chrome.")
         sys.exit(1)
 
+    smiles_routes = [r for r in MILES_ROUTES if r.get("program") == "SMILES"]
+    if not smiles_routes:
+        print("Nenhuma rota SMILES configurada em config.py")
+        sys.exit(0)
+
     print("=" * 60)
-    print("  Coletor de cookies Akamai — Smiles")
+    print("  Busca Smiles via Chrome real")
     print("=" * 60)
     print()
-    print("Abrindo Chrome real (perfil temporário)...")
+    print("Abrindo Chrome...")
     print()
     print("Instruções:")
-    print("  1. Role a página do Smiles por alguns segundos")
-    print("  2. Faça uma busca de voos normalmente")
-    print("  3. Espere a lista de resultados aparecer")
-    print("  4. Volte aqui e pressione Enter")
+    print("  1. Role a página do Smiles por ~15 segundos")
+    print("  2. Mova o mouse pelo site")
+    print("  3. Depois volte aqui e pressione Enter")
     print()
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -83,73 +123,81 @@ async def main():
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-
-        # Aguarda Chrome inicializar
         time.sleep(2)
 
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, input, "Pressione Enter quando terminar a busca...")
+        await loop.run_in_executor(None, input, "Pressione Enter para iniciar as buscas...")
 
-        # Conecta via CDP e extrai cookies
-        cookies = []
+        today = date.today()
+        dates = [today + timedelta(days=i) for i in range(1, MILES_DAYS_AHEAD + 1)]
+        total = len(smiles_routes) * len(dates)
+
+        all_flights = []
+        cache_entries = {}
+
         try:
             async with async_playwright() as p:
                 browser = await p.chromium.connect_over_cdp(
-                    f"http://localhost:{CDP_PORT}",
-                    timeout=5000,
+                    f"http://localhost:{CDP_PORT}", timeout=5000
                 )
-                contexts = browser.contexts
-                if contexts:
-                    all_cookies = await contexts[0].cookies()
-                    cookies = [
-                        c for c in all_cookies
-                        if c["name"] in AKAMAI_NAMES
-                        and "smiles" in c.get("domain", "")
-                    ]
+                context = browser.contexts[0]
+                page = await context.new_page()
+
+                done = 0
+                for route in smiles_routes:
+                    orig, dest = route["from"], route["to"]
+                    for d in dates:
+                        done += 1
+                        print(f"  [{done}/{total}] {orig}→{dest} {d}...", end=" ", flush=True)
+                        flights = await search_one(page, orig, dest, d)
+                        if flights:
+                            print(f"{len(flights)} voos (min {min(f.miles for f in flights):,} milhas)")
+                            all_flights.extend(flights)
+                            key = f"{orig}-{dest}-{d}"
+                            cache_entries[key] = [
+                                {
+                                    "origin": f.origin,
+                                    "destination": f.destination,
+                                    "departure_date": str(f.departure_date),
+                                    "departure_time": f.departure_time,
+                                    "arrival_time": f.arrival_time,
+                                    "miles": f.miles,
+                                    "is_direct": f.is_direct,
+                                    "stops": f.stops,
+                                    "booking_url": f.booking_url,
+                                }
+                                for f in flights
+                            ]
+                        else:
+                            print("sem voos")
+
                 await browser.close()
         except Exception as e:
             print(f"\nErro ao conectar ao Chrome: {e}")
-            print("Tente aumentar o tempo de espera ou verificar se o Chrome abriu corretamente.")
-            proc.terminate()
-            sys.exit(1)
         finally:
             proc.terminate()
 
-    if not cookies:
-        print("\nNenhum cookie Akamai encontrado.")
-        print("Certifique-se de ter feito uma busca completa antes de pressionar Enter.")
-        sys.exit(1)
-
-    print(f"\nCookies coletados ({len(cookies)}):")
-    abck_ok = False
-    for c in cookies:
-        if c["name"] == "_abck":
-            status = _check_abck(c["value"])
-            print(f"  _abck: {status}")
-            print(f"    {c['value'][:70]}...")
-            abck_ok = "VÁLIDO" in status
-        else:
-            print(f"  {c['name']}: {c['value'][:50]}...")
-
-    if not abck_ok:
-        print()
-        print("AVISO: _abck não está validado.")
-        print("Dicas para melhorar:")
-        print("  - Role a página devagar antes de buscar")
-        print("  - Mova o mouse pelo site")
-        print("  - Espere a lista de voos aparecer completamente")
-        print("  - Tente novamente")
-
+    # Salva cache
     payload = {
         "harvested_at": datetime.now(timezone.utc).isoformat(),
-        "cookies": cookies,
+        "flights": cache_entries,
     }
-    COOKIES_FILE.write_text(json.dumps(payload, indent=2, ensure_ascii=False))
+    CACHE_FILE.write_text(json.dumps(payload, indent=2, ensure_ascii=False))
 
+    # Resumo
     print()
-    print(f"Cookies salvos em: {COOKIES_FILE}")
-    if abck_ok:
-        print("Válidos por ~2h. Pode rodar o bot agora.")
+    print(f"Buscas concluídas. {len(all_flights)} voos encontrados no total.")
+    if all_flights:
+        print()
+        print("Melhores ofertas:")
+        sorted_flights = sorted(all_flights, key=lambda f: f.miles)
+        for f in sorted_flights[:5]:
+            direct = "direto" if f.is_direct else f"{f.stops} escala(s)"
+            print(f"  {f.origin}→{f.destination} {f.departure_date} "
+                  f"{f.departure_time}-{f.arrival_time} | {f.miles:,} milhas | {direct}")
+    print()
+    print(f"Cache salvo em: {CACHE_FILE}")
+    print("O bot usará esses resultados. Válidos por ~2h.")
 
 
 asyncio.run(main())

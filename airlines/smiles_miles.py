@@ -1,192 +1,114 @@
-import asyncio
-import calendar
 import json
 import logging
-import os
-import random
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import List
-
-from playwright.async_api import async_playwright, BrowserContext
-from playwright_stealth import Stealth
 
 from airlines.base import Flight, FlightSearcher
 
 logger = logging.getLogger(__name__)
 
-# NOTE: Smiles uses a React MFE at /mfe/emissao-passagem. The MFE auto-triggers
-# the flight search API (api-air-flightsearch-blue.smiles.com.br/v1/airlines/search)
-# when loaded with correct URL params (originAirport, destinationAirport,
-# departureDate as Unix ms timestamp, tripType=2).
+# NOTE: Smiles API is protected by Akamai Bot Manager (HTTP 406 for automation).
+# Automated browsers get _abck cookie with "-1" (bot detected), even with
+# playwright-stealth, nodriver, and curl_cffi Chrome TLS fingerprinting.
 #
-# API requires x-api-key header (static, embedded in MFE JS bundle) and
-# channel: WEB header. departureDate param is YYYY-MM-DD format.
+# Working approach: scripts/harvest_cookies.py launches real Chrome (no automation
+# flags), user does a warm-up browse to validate the Akamai session, then the
+# script uses playwright CDP to drive that same Chrome and capture API responses.
+# Results are cached in scripts/smiles_cache.json for ~2h.
 #
-# BLOCKED: Akamai Bot Manager returns HTTP 406 for all automated browsers.
-# The _abck cookie value contains "-1" (bot detected) for all tools tested:
-# playwright-stealth, nodriver, curl_cffi with Chrome TLS fingerprint.
-# Akamai collects sensor data (mouse movements, timing, canvas fingerprint)
-# and validates it server-side; headless environments fail this check.
-#
-# playwright-stealth patches navigator.webdriver and sec-ch-ua headers,
-# improving the browser fingerprint, but Akamai's behavioral analysis still
-# detects automation. _search_date() returns [] until this is resolved.
-#
-# To monitor: INFO log "SMILES ... HTTP 406" emitted on each blocked request.
+# SmilesMilesSearcher reads exclusively from this cache.
+# Run scripts/harvest_cookies.py to refresh the cache.
 _SEARCH_BASE = "https://www.smiles.com.br/passagens-aereas"
-_MFE_BASE = "https://www.smiles.com.br/mfe/emissao-passagem"
 _API_HOST = "api-air-flightsearch-blue.smiles.com.br"
-_API_HOST_LEGACY = "flightavailability-prd.smiles.com.br"
-_API_KEY = "aJqPU7xNHl9qN3NVZnPaJ208aPo2Bh2p2ZV844tw"
-_COOKIES_FILE = Path(__file__).parent.parent / "scripts" / "akamai_cookies.json"
-_COOKIE_MAX_AGE_SECONDS = 6000  # ~100 min; Akamai cookies last ~2h
+_CACHE_FILE = Path(__file__).parent.parent / "scripts" / "smiles_cache.json"
+_CACHE_MAX_AGE_SECONDS = 7200  # 2h
 
 
-def _load_akamai_cookies() -> list:
-    """Carrega cookies Akamai salvos pelo harvest_cookies.py, se frescos."""
-    if not _COOKIES_FILE.exists():
-        return []
+def _load_results_cache(origin: str, destination: str, departure_date: date) -> list | None:
+    """
+    Returns cached flights for this route/date, or None if cache is absent/expired.
+    Cache is populated by scripts/harvest_cookies.py.
+    """
+    if not _CACHE_FILE.exists():
+        return None
     try:
-        payload = json.loads(_COOKIES_FILE.read_text(encoding="utf-8"))
+        payload = json.loads(_CACHE_FILE.read_text(encoding="utf-8"))
         harvested_at = datetime.fromisoformat(payload["harvested_at"])
         age = (datetime.now(timezone.utc) - harvested_at).total_seconds()
-        if age > _COOKIE_MAX_AGE_SECONDS:
-            logger.info(
-                f"SMILES: cookies Akamai expirados ({age/60:.0f} min). "
-                "Execute scripts/harvest_cookies.py novamente."
+        if age > _CACHE_MAX_AGE_SECONDS:
+            return None
+        key = f"{origin}-{destination}-{departure_date}"
+        entries = payload.get("flights", {}).get(key)
+        if entries is None:
+            return None
+        return [
+            Flight(
+                origin=e["origin"],
+                destination=e["destination"],
+                airline="SMILES",
+                departure_date=departure_date,
+                departure_time=e["departure_time"],
+                arrival_time=e["arrival_time"],
+                price=0.0,
+                is_direct=e["is_direct"],
+                stops=e["stops"],
+                booking_url=e["booking_url"],
+                miles=e["miles"],
             )
-            return []
-        cookies = payload["cookies"]
-        logger.info(f"SMILES: carregando {len(cookies)} cookies Akamai ({age/60:.0f} min de idade)")
-        return cookies
+            for e in entries
+        ]
     except Exception as e:
-        logger.warning(f"SMILES: erro ao ler cookies Akamai: {e}")
-        return []
-
-
-def _is_headless() -> bool:
-    return os.getenv("PLAYWRIGHT_HEADLESS", "true").lower() != "false"
+        logger.warning(f"SMILES: erro ao ler cache: {e}")
+        return None
 
 
 def _parse_time(iso_str: str) -> str:
-    """Extrai 'HHhMM' de '2026-07-15T07:40:00'."""
+    """Extracts 'HHhMM' from '2026-07-15T07:40:00'."""
     if not iso_str or "T" not in iso_str:
         return ""
-    time_part = iso_str.split("T")[1][:5]  # "07:40"
-    return time_part.replace(":", "h")
+    return iso_str.split("T")[1][:5].replace(":", "h")
 
 
 class SmilesMilesSearcher(FlightSearcher):
     AIRLINE_NAME = "SMILES"
 
-    async def _make_context(self, p) -> "BrowserContext":
-        """Cria browser context com cookies Akamai injetados (se disponíveis)."""
-        browser = await p.chromium.launch(headless=_is_headless())
-        context = await browser.new_context()
-        cookies = _load_akamai_cookies()
-        if cookies:
-            await context.add_cookies(cookies)
-        return context
-
     async def search(self, origin: str, destination: str, departure_date: date) -> List[Flight]:
-        async with Stealth().use_async(async_playwright()) as p:
-            context = await self._make_context(p)
-            try:
-                return await self._search_date(context, origin, destination, departure_date)
-            except Exception as e:
-                logger.warning(f"SMILES/{origin}→{destination} {departure_date}: {e}")
-                return []
-            finally:
-                await context.browser.close()
+        cached = _load_results_cache(origin, destination, departure_date)
+        if cached is not None:
+            logger.info(f"SMILES/{origin}→{destination} {departure_date}: {len(cached)} voos do cache")
+            return cached
+        logger.info(
+            f"SMILES/{origin}→{destination} {departure_date}: "
+            "sem cache — execute scripts/harvest_cookies.py"
+        )
+        return []
 
     async def search_range(
         self, origin: str, destination: str, days_ahead: int = 30, batch_size: int = 1
     ) -> List[Flight]:
-        """Abre um único browser e reutiliza para todas as datas (mais eficiente)."""
         today = date.today()
         dates = [today + timedelta(days=i) for i in range(1, days_ahead + 1)]
         all_flights: List[Flight] = []
+        cache_miss_logged = False
 
-        async with Stealth().use_async(async_playwright()) as p:
-            context = await self._make_context(p)
-            try:
-                for d in dates:
-                    try:
-                        flights = await self._search_date(context, origin, destination, d)
-                        all_flights.extend(flights)
-                        await asyncio.sleep(random.uniform(2, 4))
-                    except Exception as e:
-                        logger.warning(f"SMILES/{origin}→{destination} {d}: erro inesperado: {e}")
-                        continue
-            finally:
-                await context.browser.close()
+        for d in dates:
+            cached = _load_results_cache(origin, destination, d)
+            if cached is not None:
+                all_flights.extend(cached)
+            elif not cache_miss_logged:
+                logger.info(
+                    f"SMILES/{origin}→{destination}: "
+                    "cache ausente ou expirado — execute scripts/harvest_cookies.py"
+                )
+                cache_miss_logged = True
 
         return all_flights
-
-    async def _search_date(
-        self, context: BrowserContext, origin: str, destination: str, departure_date: date
-    ) -> List[Flight]:
-        page = await context.new_page()
-        captured: list = []
-        blocked_406 = False
-
-        async def handle_response(response):
-            nonlocal blocked_406
-            if _API_HOST not in response.url and _API_HOST_LEGACY not in response.url:
-                return
-            if response.status == 200:
-                try:
-                    data = await response.json()
-                    captured.append(data)
-                except Exception:
-                    pass
-            elif response.status == 406:
-                blocked_406 = True
-                logger.info(
-                    f"SMILES/{origin}→{destination} {departure_date}: "
-                    f"HTTP 406 (Akamai bloqueou) — execute scripts/harvest_cookies.py"
-                )
-
-        page.on("response", handle_response)
-
-        try:
-            # MFE auto-triggers the search API when loaded with the correct params.
-            # departureDate is a Unix millisecond timestamp.
-            departure_ts = int(
-                calendar.timegm(
-                    datetime(departure_date.year, departure_date.month, departure_date.day).timetuple()
-                )
-            ) * 1000
-            url = (
-                f"{_MFE_BASE}"
-                f"?tripType=2"
-                f"&originAirport={origin}"
-                f"&destinationAirport={destination}"
-                f"&departureDate={departure_ts}"
-                f"&adults=1&children=0&infants=0"
-                f"&cabinType=all&isFlexibleDateChecked=false"
-            )
-            await page.goto(url, timeout=30000, wait_until="domcontentloaded")
-            await asyncio.sleep(random.uniform(8, 12))
-        except Exception as e:
-            logger.warning(f"SMILES page {origin}→{destination} {departure_date}: {e}")
-            return []
-        finally:
-            await page.close()
-
-        if not captured:
-            if not blocked_406:
-                logger.info(
-                    f"SMILES/{origin}→{destination} {departure_date}: sem resposta JSON capturada"
-                )
-            return []
-
-        return self._parse(captured[0], origin, destination, departure_date)
 
     def _parse(
         self, data: dict, origin: str, destination: str, departure_date: date
     ) -> List[Flight]:
+        """Parses raw API JSON into Flight objects. Called by harvest_cookies.py."""
         flights: List[Flight] = []
         try:
             segments = data.get("requestedFlightSegmentList", [])
