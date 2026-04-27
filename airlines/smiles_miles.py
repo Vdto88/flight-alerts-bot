@@ -7,29 +7,36 @@ from datetime import date, datetime, timedelta
 from typing import List
 
 from playwright.async_api import async_playwright, Browser
+from playwright_stealth import Stealth
 
 from airlines.base import Flight, FlightSearcher
 
 logger = logging.getLogger(__name__)
 
-# NOTE: Smiles migrated from /passagens-aereas (Liferay portlet) to a React MFE
-# at /mfe/emissao-passagem. The new search API is api-air-flightsearch-blue.smiles.com.br.
-# The MFE page auto-triggers the flight search when loaded with correct URL params
-# (tripType, originAirport, destinationAirport, departureDate as Unix ms timestamp).
+# NOTE: Smiles uses a React MFE at /mfe/emissao-passagem. The MFE auto-triggers
+# the flight search API (api-air-flightsearch-blue.smiles.com.br/v1/airlines/search)
+# when loaded with correct URL params (originAirport, destinationAirport,
+# departureDate as Unix ms timestamp, tripType=2).
 #
-# BLOCKED: Akamai Bot Manager (bm_ss/bm_s/bm_sz/_abck cookies) returns HTTP 406
-# for all headless Playwright requests to api-air-flightsearch-blue, detected via
-# sec-ch-ua: "HeadlessChrome". Launching with channel="chrome" does not bypass it.
-# Form selectors for /passagens-aereas (legacy fallback, also blocked for search):
-#   origin: #inputOrigin, destination: #inputDestination,
-#   date: #_smilesflightsearchportlet_WAR_smilesbookingportlet_departure_date,
-#   submit: #submitFlightSearch (hidden until #inputOrigin is clicked to expand form)
+# API requires x-api-key header (static, embedded in MFE JS bundle) and
+# channel: WEB header. departureDate param is YYYY-MM-DD format.
 #
-# _search_date() currently returns [] for all requests due to this block.
+# BLOCKED: Akamai Bot Manager returns HTTP 406 for all automated browsers.
+# The _abck cookie value contains "-1" (bot detected) for all tools tested:
+# playwright-stealth, nodriver, curl_cffi with Chrome TLS fingerprint.
+# Akamai collects sensor data (mouse movements, timing, canvas fingerprint)
+# and validates it server-side; headless environments fail this check.
+#
+# playwright-stealth patches navigator.webdriver and sec-ch-ua headers,
+# improving the browser fingerprint, but Akamai's behavioral analysis still
+# detects automation. _search_date() returns [] until this is resolved.
+#
+# To monitor: INFO log "SMILES ... HTTP 406" emitted on each blocked request.
 _SEARCH_BASE = "https://www.smiles.com.br/passagens-aereas"
 _MFE_BASE = "https://www.smiles.com.br/mfe/emissao-passagem"
 _API_HOST = "api-air-flightsearch-blue.smiles.com.br"
 _API_HOST_LEGACY = "flightavailability-prd.smiles.com.br"
+_API_KEY = "aJqPU7xNHl9qN3NVZnPaJ208aPo2Bh2p2ZV844tw"
 
 
 def _is_headless() -> bool:
@@ -48,7 +55,7 @@ class SmilesMilesSearcher(FlightSearcher):
     AIRLINE_NAME = "SMILES"
 
     async def search(self, origin: str, destination: str, departure_date: date) -> List[Flight]:
-        async with async_playwright() as p:
+        async with Stealth().use_async(async_playwright()) as p:
             browser = await p.chromium.launch(headless=_is_headless())
             try:
                 return await self._search_date(browser, origin, destination, departure_date)
@@ -66,7 +73,7 @@ class SmilesMilesSearcher(FlightSearcher):
         dates = [today + timedelta(days=i) for i in range(1, days_ahead + 1)]
         all_flights: List[Flight] = []
 
-        async with async_playwright() as p:
+        async with Stealth().use_async(async_playwright()) as p:
             browser = await p.chromium.launch(headless=_is_headless())
             try:
                 for d in dates:
@@ -85,30 +92,32 @@ class SmilesMilesSearcher(FlightSearcher):
     async def _search_date(
         self, browser: Browser, origin: str, destination: str, departure_date: date
     ) -> List[Flight]:
-        page = await browser.new_page(
-            user_agent=(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/124.0.0.0 Safari/537.36"
-            )
-        )
+        page = await browser.new_page()
         captured: list = []
+        blocked_406 = False
 
         async def handle_response(response):
-            if (
-                (_API_HOST in response.url or _API_HOST_LEGACY in response.url)
-                and response.status == 200
-            ):
+            nonlocal blocked_406
+            if _API_HOST not in response.url and _API_HOST_LEGACY not in response.url:
+                return
+            if response.status == 200:
                 try:
                     data = await response.json()
                     captured.append(data)
                 except Exception:
                     pass
+            elif response.status == 406:
+                blocked_406 = True
+                logger.info(
+                    f"SMILES/{origin}→{destination} {departure_date}: "
+                    f"HTTP 406 (Akamai bloqueou) — retornando []"
+                )
 
         page.on("response", handle_response)
 
         try:
-            # MFE page auto-triggers the search API when loaded with timestamp param
+            # MFE auto-triggers the search API when loaded with the correct params.
+            # departureDate is a Unix millisecond timestamp.
             departure_ts = int(
                 calendar.timegm(
                     datetime(departure_date.year, departure_date.month, departure_date.day).timetuple()
@@ -132,7 +141,10 @@ class SmilesMilesSearcher(FlightSearcher):
             await page.close()
 
         if not captured:
-            logger.info(f"SMILES/{origin}→{destination} {departure_date}: sem resposta JSON capturada")
+            if not blocked_406:
+                logger.info(
+                    f"SMILES/{origin}→{destination} {departure_date}: sem resposta JSON capturada"
+                )
             return []
 
         return self._parse(captured[0], origin, destination, departure_date)

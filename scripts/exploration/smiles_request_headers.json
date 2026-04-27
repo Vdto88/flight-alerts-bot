@@ -1,0 +1,13 @@
+{
+  "url": "https://api-air-flightsearch-blue.smiles.com.br/v1/airlines/search?originAirportCode=CNF&destinationAirportCode=IGU&departureDate=2026-05-25&memberNumber=&adults=1&children=0&infants=0&forceCongener=false&cookies=_gid%3Dundefined%3B",
+  "headers": {
+    "sec-ch-ua-platform": "\"Windows\"",
+    "referer": "https://www.smiles.com.br/",
+    "sec-ch-ua": "\"Chrome\";v=\"143\", \"Not?A?Brand\";v=\"99\", \"Chromium\";v=\"143\"",
+    "x-api-key": "aJqPU7xNHl9qN3NVZnPaJ208aPo2Bh2p2ZV844tw",
+    "sec-ch-ua-mobile": "?0",
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+    "accept": "application/json, text/plain, */*",
+    "channel": "WEB"
+  }
+}
