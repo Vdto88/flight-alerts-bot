@@ -64,3 +64,68 @@ async def test_send_alert_calls_telegram(monkeypatch):
     mock_bot.send_message.assert_called_once()
     call_kwargs = mock_bot.send_message.call_args.kwargs
     assert "CNF → GRU" in call_kwargs["text"]
+
+
+def _sample_miles_flight(miles: int = 15000, airline: str = "SMILES") -> Flight:
+    return Flight(
+        origin="CNF",
+        destination="IGU",
+        airline=airline,
+        departure_date=date(2026, 7, 15),
+        departure_time="07h40",
+        arrival_time="09h10",
+        price=0.0,
+        is_direct=True,
+        stops=0,
+        booking_url="https://smiles.com.br/busca",
+        miles=miles,
+    )
+
+
+def test_miles_alert_contains_miles_value():
+    msg = telegram_bot.format_alert(_sample_miles_flight(15000))
+    assert "15.000 milhas" in msg
+
+
+def test_miles_alert_contains_route():
+    msg = telegram_bot.format_alert(_sample_miles_flight())
+    assert "CNF → IGU" in msg
+
+
+def test_miles_alert_contains_airline():
+    msg = telegram_bot.format_alert(_sample_miles_flight(airline="SMILES"))
+    assert "SMILES" in msg or "Smiles" in msg
+
+
+def test_miles_alert_contains_date():
+    msg = telegram_bot.format_alert(_sample_miles_flight())
+    assert "15/07/2026" in msg
+
+
+def test_miles_alert_uses_milhas_header():
+    msg = telegram_bot.format_alert(_sample_miles_flight())
+    assert "MILHAS" in msg.upper()
+
+
+def test_miles_alert_does_not_show_brl_price():
+    msg = telegram_bot.format_alert(_sample_miles_flight())
+    assert "R$" not in msg
+
+
+def test_money_alert_unchanged():
+    # Regression: money alert must not change
+    money_flight = _sample_flight()
+    msg = telegram_bot.format_alert(money_flight)
+    assert "289,90" in msg
+    assert "PASSAGEM BARATA" in msg.upper()
+
+
+def test_miles_alert_direct_flight():
+    msg = telegram_bot.format_alert(_sample_miles_flight())
+    assert "Direto" in msg
+
+
+def test_miles_alert_azul():
+    msg = telegram_bot.format_alert(_sample_miles_flight(miles=20000, airline="AZUL_MILES"))
+    assert "20.000 milhas" in msg
+    assert "AZUL" in msg.upper()

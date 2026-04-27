@@ -4,6 +4,9 @@ WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+# --with-deps instala automaticamente as dependências do sistema para o Chromium,
+# sincronizado com a versão do Playwright instalada via pip.
+RUN playwright install --with-deps chromium
 
 COPY . .
 

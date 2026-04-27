@@ -1,0 +1,22 @@
+{
+  "_note": "Template fixture — not from a real Azul Fidelidade API response. See airlines/azul_miles.py for why live scraping is blocked.",
+  "flights": [
+    {
+      "departureTime": "07:40",
+      "arrivalTime": "09:10",
+      "stops": 0,
+      "fares": [
+        {"points": 20000, "available": true},
+        {"points": 18000, "available": true}
+      ]
+    },
+    {
+      "departureTime": "14:00",
+      "arrivalTime": "15:30",
+      "stops": 0,
+      "fares": [
+        {"points": 25000, "available": false}
+      ]
+    }
+  ]
+}

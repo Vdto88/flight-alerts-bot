@@ -1,0 +1,103 @@
+{
+  "responses": [
+    {
+      "url": "https://flightavailability-prd.smiles.com.br/flight/category",
+      "status": 200,
+      "data": {
+        "flightCategoryList": [
+          {
+            "code": "1-1Q8B3OH3",
+            "name": "Praia",
+            "content": {
+              "Cover_Image": "https://media-cms-prd.smiles.com.br/842226a3-c93a-4dc0-a4b8-86ca9ae7c633?size=150x310&type=jpg",
+              "Description": "<p>A verdadeira viagem de descobrimento não consiste em procurar novas paisagens e sim ter novos olhos<br><ins>Marcel Proust</ins></p>\n",
+              "Desktop_Background_Image": "https://media-cms-prd.smiles.com.br/bad1b7b3-ba7a-496b-bc7e-1805ed2bd012?size=1360x650&type=jpg",
+              "Mobile_Background_Image": "https://media-cms-prd.smiles.com.br/9b97953a-f976-4833-b3af-f0a9ca5c67dc?size=340x744&type=jpg",
+              "Is_Spotlight": "1"
+            }
+          },
+          {
+            "code": "1-1Q8B3OH1",
+            "name": "Frio",
+            "content": {
+              "Cover_Image": "https://media-cms-prd.smiles.com.br/a3662713-bb6c-4106-876d-06d976d8421d?size=316x150&type=png",
+              "Description": "<p>Em algum lugar alguma coisa incrível está esperando para ser conhecida<br><ins>Carl Sagan</ins></p>\n",
+              "Desktop_Background_Image": "https://media-cms-prd.smiles.com.br/65fad3c9-3edc-40a2-9735-986b47228b29?size=1360x650&type=jpg",
+              "Mobile_Background_Image": "https://media-cms-prd.smiles.com.br/a8567e58-6400-402e-9759-81751a412dde?size=340x744&type=jpg"
+            }
+          },
+          {
+            "code": "1-1Q8B3OH2",
+            "name": "História",
+            "content": {
+              "Cover_Image": "https://media-cms-prd.smiles.com.br/b9bc88d8-eb15-4180-ad8f-7442356e75ee?size=150x150&type=jpg",
+              "Description": "<p>As pessoas não fazem as viagens. As viagens é que fazem as pessoas<br><ins>John Steinbeck</ins></p>\n",
+              "Desktop_Background_Image": "https://media-cms-prd.smiles.com.br/bb5cd01d-6259-4f10-b302-da8eb0d407a1?size=1360x650&type=jpg",
+              "Mobile_Background_Image": "https://media-cms-prd.smiles.com.br/d2948a56-c750-4c16-a536-5a121be9b8c8?size=340x744&type=jpg"
+            }
+          },
+          {
+            "code": "1-1Q8B3OH4",
+            "name": "Natureza",
+            "content": {
+              "Cover_Image": "https://media-cms-prd.smiles.com.br/23c146f3-39e3-4442-a487-b0824ad2d2c4?size=150x150&type=jpg",
+              "Description": "<p>Vá até onde puder ver. Quando chegar, poderá ver ainda mais longe<br><ins>Goethe</ins></p>\n",
+              "Desktop_Background_Image": "https://media-cms-prd.smiles.com.br/10688b5d-6999-462d-b4e3-39d61ab1394a?size=1360x650&type=jpg",
+              "Mobile_Background_Image": "https://media-cms-prd.smiles.com.br/bbc930c0-d5dc-4717-98af-216555d45fa7?size=340x744&type=jpg"
+            }
+          },
+          {
+            "code": "1-1Q8B3OH5",
+            "name": "Família",
+            "content": {
+              "Cover_Image": "https://media-cms-prd.smiles.com.br/b94afcec-f905-4483-a6bc-e089c478dc4b?size=150x150&type=jpg",
+              "Description": "<p><span style=\"font-size: 14px;\">Liberdade de voar num horizonte qualquer, liberdade de pousar onde o coração  quiser<br><ins>Cecília Meirelles</ins></span></p>\n",
+              "Desktop_Background_Image": "https://media-cms-prd.smiles.com.br/a65481e6-1a5f-437d-9f43-7da37c1493ab?size=1360x650&type=jpg",
+              "Mobile_Background_Image": "https://media-cms-prd.smiles.com.br/87beaee8-9eb2-469b-b36c-b2b3da241a2f?size=340x744&type=jpg"
+            }
+          },
+          {
+            "code": "1-1Q8B3OH7",
+            "name": "Urbano",
+            "content": {
+              "Cover_Image": "https://media-cms-prd.smiles.com.br/b41437dd-5de7-45d8-9ec7-0d48716294de?size=150x150&type=jpg",
+              "Description": "<p>O fim de uma viagem é apenas o começo de outra. É preciso ver o que não foi visto, ver outra vez o que se viu já...<br><ins>José Saramago</ins></p>\n",
+              "Desktop_Background_Image": "https://media-cms-prd.smiles.com.br/3e7c10c7-8f29-411a-837b-7594b413ec6e?size=1360x650&type=jpg",
+              "Mobile_Background_Image": "https://media-cms-prd.smiles.com.br/c70f05fb-f6be-49c2-8141-6573fb352e1b?size=340x744&type=jpg"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "requests": [
+    {
+      "url": "https://flightavailability-prd.smiles.com.br/flight/category",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "https://www.smiles.com.br/",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "accept": "application/json, text/javascript, */*; q=0.01",
+        "sec-ch-ua": "\"HeadlessChrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+        "x-api-key": "aJqPU7xNHl9qN3NVZnPaJ208aPo2Bh2p2ZV844tw",
+        "sec-ch-ua-mobile": "?0"
+      }
+    },
+    {
+      "url": "https://flightavailability-prd.smiles.com.br/searchflights?adults=1&cabinType=all&children=0&currencyCode=BRL&departureDate=2026-07-15&destinationAirportCode=IGU&infants=0&originAirportCode=CNF&tripType=2",
+      "method": "GET",
+      "headers": {
+        "sec-ch-ua-platform": "\"Windows\"",
+        "referer": "https://www.smiles.com.br/",
+        "sec-ch-ua": "\"HeadlessChrome\";v=\"143\", \"Chromium\";v=\"143\", \"Not A(Brand\";v=\"24\"",
+        "sec-ch-ua-mobile": "?0",
+        "x-api-key": "aJqPU7xNHl9qN3NVZnPaJ208aPo2Bh2p2ZV844tw",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "accept": "application/json",
+        "channel": "WEB",
+        "region": "BRAZIL"
+      }
+    }
+  ]
+}

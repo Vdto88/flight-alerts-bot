@@ -21,3 +21,15 @@ CACHE_TTL_HOURS: int = 24
 REQUEST_TIMEOUT: float = 15.0
 REQUEST_RETRIES: int = 2
 REQUEST_RETRY_BACKOFF: float = 2.0
+
+MILES_ROUTES = [
+    {"from": "CNF", "to": "IGU", "miles_threshold": 15000, "program": "SMILES"},
+    {"from": "IGU", "to": "CNF", "miles_threshold": 15000, "program": "SMILES"},
+    {"from": "CNF", "to": "IGU", "miles_threshold": 20000, "program": "AZUL_MILES"},
+    {"from": "IGU", "to": "CNF", "miles_threshold": 20000, "program": "AZUL_MILES"},
+]
+
+# 30 dias é suficiente — cada data requer uma sessão Playwright (~5–10s)
+# 30 datas × 4 rotas × ~7s = ~14 min por ciclo, dentro do MILES_CYCLE_MINUTES
+MILES_DAYS_AHEAD: int = 30
+MILES_CYCLE_MINUTES: int = 60
