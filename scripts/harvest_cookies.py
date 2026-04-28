@@ -58,27 +58,50 @@ def mfe_url(origin: str, dest: str, departure: date) -> str:
     )
 
 
-async def search_one(page, origin: str, dest: str, departure: date) -> list:
+async def search_one(page, origin: str, dest: str, departure: date, debug: bool = False) -> list:
     """Navega para o MFE no Chrome real e captura a resposta da API."""
     captured = {}
+    api_calls = []
 
     async def on_response(r):
-        if _API_HOST in r.url and r.status == 200:
+        if _API_HOST not in r.url:
+            return
+        api_calls.append((r.status, r.url))
+        if r.status == 200:
             try:
                 captured["data"] = await r.json()
-            except Exception:
-                pass
+            except Exception as e:
+                captured["json_err"] = str(e)
+
+    async def on_fail(r):
+        if _API_HOST in r.url:
+            api_calls.append(("FAILED", r.url, r.failure))
 
     page.on("response", on_response)
+    page.on("requestfailed", on_fail)
     try:
         await page.goto(mfe_url(origin, dest, departure), wait_until="domcontentloaded", timeout=30000)
-        # Espera a API responder (máx 20s)
         for _ in range(20):
             if "data" in captured:
                 break
             await asyncio.sleep(1)
     finally:
         page.remove_listener("response", on_response)
+        page.remove_listener("requestfailed", on_fail)
+
+    if debug:
+        if api_calls:
+            for call in api_calls:
+                print(f"    API: {call}")
+        else:
+            print("    API: nenhuma chamada capturada")
+        if "data" in captured:
+            data = captured["data"]
+            segs = data.get("requestedFlightSegmentList", [])
+            total_flights = sum(len(s.get("flightList", [])) for s in segs)
+            print(f"    JSON recebido: {total_flights} voos em {len(segs)} segmentos")
+        elif "json_err" in captured:
+            print(f"    JSON error: {captured['json_err']}")
 
     if "data" not in captured:
         return []
@@ -150,7 +173,7 @@ async def main():
                 for d in dates:
                     done += 1
                     print(f"  [{done}/{total}] {orig}->{dest} {d}...", end=" ", flush=True)
-                    flights = await search_one(page, orig, dest, d)
+                    flights = await search_one(page, orig, dest, d, debug=(done <= 2))
                     if flights:
                         print(f"{len(flights)} voos (min {min(f.miles for f in flights):,} milhas)")
                         all_flights.extend(flights)
