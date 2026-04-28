@@ -13,6 +13,7 @@ import asyncio
 import calendar
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -109,73 +110,78 @@ async def main():
     print("  3. Depois volte aqui e pressione Enter")
     print()
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        proc = subprocess.Popen(
-            [
-                chrome,
-                f"--remote-debugging-port={CDP_PORT}",
-                f"--user-data-dir={tmpdir}",
-                "--window-size=1280,900",
-                "--no-first-run",
-                "--no-default-browser-check",
-                "https://www.smiles.com.br",
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        time.sleep(2)
+    tmpdir = tempfile.mkdtemp(prefix="smiles_chrome_")
+    proc = subprocess.Popen(
+        [
+            chrome,
+            f"--remote-debugging-port={CDP_PORT}",
+            f"--user-data-dir={tmpdir}",
+            "--window-size=1280,900",
+            "--no-first-run",
+            "--no-default-browser-check",
+            "https://www.smiles.com.br",
+        ],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    time.sleep(2)
 
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, input, "Pressione Enter para iniciar as buscas...")
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, input, "Pressione Enter para iniciar as buscas...")
 
-        today = date.today()
-        dates = [today + timedelta(days=i) for i in range(1, MILES_DAYS_AHEAD + 1)]
-        total = len(smiles_routes) * len(dates)
+    today = date.today()
+    dates = [today + timedelta(days=i) for i in range(1, MILES_DAYS_AHEAD + 1)]
+    total = len(smiles_routes) * len(dates)
 
-        all_flights = []
-        cache_entries = {}
+    all_flights = []
+    cache_entries = {}
 
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.connect_over_cdp(
+                f"http://localhost:{CDP_PORT}", timeout=5000
+            )
+            context = browser.contexts[0]
+            page = await context.new_page()
+
+            done = 0
+            for route in smiles_routes:
+                orig, dest = route["from"], route["to"]
+                for d in dates:
+                    done += 1
+                    print(f"  [{done}/{total}] {orig}->{dest} {d}...", end=" ", flush=True)
+                    flights = await search_one(page, orig, dest, d)
+                    if flights:
+                        print(f"{len(flights)} voos (min {min(f.miles for f in flights):,} milhas)")
+                        all_flights.extend(flights)
+                        key = f"{orig}-{dest}-{d}"
+                        cache_entries[key] = [
+                            {
+                                "origin": f.origin,
+                                "destination": f.destination,
+                                "departure_date": str(f.departure_date),
+                                "departure_time": f.departure_time,
+                                "arrival_time": f.arrival_time,
+                                "miles": f.miles,
+                                "is_direct": f.is_direct,
+                                "stops": f.stops,
+                                "booking_url": f.booking_url,
+                            }
+                            for f in flights
+                        ]
+                    else:
+                        print("sem voos")
+
+            await browser.close()
+    except Exception as e:
+        print(f"\nErro ao conectar ao Chrome: {e}")
+    finally:
+        proc.terminate()
         try:
-            async with async_playwright() as p:
-                browser = await p.chromium.connect_over_cdp(
-                    f"http://localhost:{CDP_PORT}", timeout=5000
-                )
-                context = browser.contexts[0]
-                page = await context.new_page()
-
-                done = 0
-                for route in smiles_routes:
-                    orig, dest = route["from"], route["to"]
-                    for d in dates:
-                        done += 1
-                        print(f"  [{done}/{total}] {orig}→{dest} {d}...", end=" ", flush=True)
-                        flights = await search_one(page, orig, dest, d)
-                        if flights:
-                            print(f"{len(flights)} voos (min {min(f.miles for f in flights):,} milhas)")
-                            all_flights.extend(flights)
-                            key = f"{orig}-{dest}-{d}"
-                            cache_entries[key] = [
-                                {
-                                    "origin": f.origin,
-                                    "destination": f.destination,
-                                    "departure_date": str(f.departure_date),
-                                    "departure_time": f.departure_time,
-                                    "arrival_time": f.arrival_time,
-                                    "miles": f.miles,
-                                    "is_direct": f.is_direct,
-                                    "stops": f.stops,
-                                    "booking_url": f.booking_url,
-                                }
-                                for f in flights
-                            ]
-                        else:
-                            print("sem voos")
-
-                await browser.close()
-        except Exception as e:
-            print(f"\nErro ao conectar ao Chrome: {e}")
-        finally:
-            proc.terminate()
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
     # Salva cache
     payload = {
