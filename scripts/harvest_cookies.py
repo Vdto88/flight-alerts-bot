@@ -45,9 +45,11 @@ def find_chrome() -> str | None:
 
 
 def mfe_url(origin: str, dest: str, departure: date) -> str:
+    # Use noon UTC (12:00) so the timestamp is interpreted as the correct date
+    # in Brazil time (UTC-3). Midnight UTC = 9pm previous day in Brazil.
     ts = int(
         calendar.timegm(
-            datetime(departure.year, departure.month, departure.day).timetuple()
+            datetime(departure.year, departure.month, departure.day, 12, 0, 0).timetuple()
         )
     ) * 1000
     return (
@@ -100,6 +102,14 @@ async def search_one(page, origin: str, dest: str, departure: date, debug: bool 
             segs = data.get("requestedFlightSegmentList", [])
             total_flights = sum(len(s.get("flightList", [])) for s in segs)
             print(f"    JSON recebido: {total_flights} voos em {len(segs)} segmentos")
+            # Debug: show first flight's structure
+            if segs and segs[0].get("flightList"):
+                f0 = segs[0]["flightList"][0]
+                avails = f0.get("availabilityList", [])
+                print(f"    1o voo: stops={f0.get('stops')} avails={len(avails)}")
+                if avails:
+                    a0 = avails[0]
+                    print(f"    1a avail: qty={a0.get('quantity')} fare={a0.get('fare')}")
         elif "json_err" in captured:
             print(f"    JSON error: {captured['json_err']}")
 
