@@ -6,6 +6,7 @@ from telegram.constants import ParseMode
 
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHANNEL_ID
 from airlines.base import Flight
+from alerts import AzulComparison
 
 logger = logging.getLogger(__name__)
 
@@ -76,3 +77,48 @@ async def send_alert(flight: Flight) -> None:
         )
     except Exception as e:
         logger.error(f"Falha ao enviar alerta Telegram: {e}")
+
+
+def _format_brl(value: float) -> str:
+    return f"R$ {value:_.2f}".replace("_", "X").replace(".", ",").replace("X", ".")
+
+
+def _stops_label(flight: Flight) -> str:
+    if flight.is_direct or flight.stops == 0:
+        return "Direto"
+    return f"{flight.stops} parada" + ("s" if flight.stops > 1 else "")
+
+
+def format_azul_alert(flight: Flight, comparison: AzulComparison) -> str:
+    dep_date = flight.departure_date.strftime("%d/%m/%Y")
+    now_str = datetime.now().strftime("%H:%M")
+    return (
+        f"🔵 *AZUL É A MAIS BARATA*\n\n"
+        f"🛫 {flight.origin} → {flight.destination}\n"
+        f"💰 {_format_brl(flight.price)}  (Azul)\n"
+        f"📊 vs {_format_brl(comparison.competitor_price)} ({comparison.competitor}) "
+        f"— economia de {_format_brl(comparison.savings)}\n"
+        f"📅 {dep_date} • {flight.departure_time} → {flight.arrival_time}\n"
+        f"🏢 Azul • {_stops_label(flight)}\n"
+        f"🔗 [Reservar agora]({flight.booking_url})\n\n"
+        f"⏰ Detectado às {now_str}"
+    )
+
+
+async def send_azul_alert(flight: Flight, comparison: AzulComparison) -> None:
+    bot = get_bot()
+    message = format_azul_alert(flight, comparison)
+    try:
+        await bot.send_message(
+            chat_id=TELEGRAM_CHANNEL_ID,
+            text=message,
+            parse_mode=ParseMode.MARKDOWN,
+            link_preview_options=LinkPreviewOptions(is_disabled=True),
+        )
+        logger.info(
+            f"Alerta Azul enviado: {flight.origin}→{flight.destination} "
+            f"R${flight.price:.2f} (vs {comparison.competitor} R${comparison.competitor_price:.2f}) "
+            f"{flight.departure_date}"
+        )
+    except Exception as e:
+        logger.error(f"Falha ao enviar alerta Azul: {e}")

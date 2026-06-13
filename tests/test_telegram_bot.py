@@ -129,3 +129,32 @@ def test_miles_alert_azul():
     msg = telegram_bot.format_alert(_sample_miles_flight(miles=20000, airline="AZUL_MILES"))
     assert "20.000 milhas" in msg
     assert "AZUL" in msg.upper()
+
+
+from datetime import date as _date
+from airlines.base import Flight as _Flight
+from alerts import AzulComparison as _AzulComparison
+import telegram_bot as _tb
+
+
+def test_format_azul_alert_contains_comparison():
+    f = _Flight("CNF", "SSA", "Azul", _date(2026, 7, 15), "12h00", "13h15",
+                300.0, True, 0, "https://book")
+    comp = _AzulComparison(competitor="LATAM", competitor_price=396.0, savings=96.0)
+    msg = _tb.format_azul_alert(f, comp)
+    assert "AZUL É A MAIS BARATA" in msg
+    assert "CNF → SSA" in msg
+    assert "R$ 300,00" in msg
+    assert "LATAM" in msg
+    assert "R$ 396,00" in msg
+    assert "economia de R$ 96,00" in msg
+    assert "Direto" in msg
+    assert "https://book" in msg
+
+
+def test_format_azul_alert_shows_stops_plural():
+    f = _Flight("CNF", "PUQ", "Azul", _date(2026, 7, 15), "06h00", "20h00",
+                900.0, False, 2, "https://book")
+    comp = _AzulComparison(competitor="LATAM", competitor_price=1200.0, savings=300.0)
+    msg = _tb.format_azul_alert(f, comp)
+    assert "2 paradas" in msg
