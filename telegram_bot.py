@@ -106,9 +106,9 @@ def format_azul_alert(flight: Flight, comparison: AzulComparison) -> str:
 
 
 async def send_azul_alert(flight: Flight, comparison: AzulComparison) -> None:
-    bot = get_bot()
     message = format_azul_alert(flight, comparison)
     try:
+        bot = get_bot()
         await bot.send_message(
             chat_id=TELEGRAM_CHANNEL_ID,
             text=message,

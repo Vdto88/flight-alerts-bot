@@ -51,6 +51,15 @@ def _parse_price(raw: str) -> Optional[float]:
         return None
 
 
+def _parse_stops(raw) -> int:
+    """fast_flights returns stops as an int, or 'Unknown' when it can't tell.
+    Treat non-numeric/None as 1 (connecting). Stops are not filtered — only shown."""
+    try:
+        return int(raw)
+    except (ValueError, TypeError):
+        return 1
+
+
 class GoogleFlightsSearcher(FlightSearcher):
     AIRLINE_NAME = "GOOGLE_FALLBACK"
 
@@ -79,9 +88,7 @@ class GoogleFlightsSearcher(FlightSearcher):
                 price = _parse_price(ff.price or "")
                 if price is None:
                     continue
-                stops = int(ff.stops) if ff.stops is not None else 0
-                if stops > 1:
-                    continue
+                stops = _parse_stops(ff.stops)
                 dep_time = _parse_time(ff.departure or "")
                 arr_time = _parse_time(ff.arrival or "")
                 booking_url = (

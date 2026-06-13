@@ -158,3 +158,15 @@ def test_format_azul_alert_shows_stops_plural():
     comp = _AzulComparison(competitor="LATAM", competitor_price=1200.0, savings=300.0)
     msg = _tb.format_azul_alert(f, comp)
     assert "2 paradas" in msg
+
+
+async def test_send_azul_alert_swallows_errors(monkeypatch):
+    # A failure building the bot (e.g. missing/invalid token) must not crash the
+    # cycle — it should be logged and swallowed.
+    def boom():
+        raise RuntimeError("no token")
+    monkeypatch.setattr(_tb, "get_bot", boom)
+    f = _Flight("CNF", "SSA", "Azul", _date(2026, 7, 15), "12h00", "13h15",
+                300.0, True, 0, "https://book")
+    comp = _AzulComparison(competitor="LATAM", competitor_price=396.0, savings=96.0)
+    await _tb.send_azul_alert(f, comp)   # must not raise

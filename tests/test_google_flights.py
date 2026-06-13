@@ -68,10 +68,28 @@ def test_parse_valid_flight():
     assert f.destination == "CGH"
 
 
-def test_parse_filters_more_than_one_stop():
+def test_parse_keeps_multi_stop_flights():
+    # Stops are no longer filtered — a 2-stop flight is kept (the Azul comparison
+    # ignores stops so long international routes can fire).
     searcher = GoogleFlightsSearcher()
     result = _make_ff_result([_make_ff_flight(stops=2)])
-    assert searcher._parse(result, "GRU", "CGH", date(2026, 5, 15)) == []
+    flights = searcher._parse(result, "GRU", "CGH", date(2026, 5, 15))
+    assert len(flights) == 1
+    assert flights[0].stops == 2
+    assert flights[0].is_direct is False
+
+
+def test_parse_handles_unknown_stops_without_aborting():
+    # fast_flights sometimes returns stops='Unknown'; it must not crash the parse
+    # nor drop the other flights in the same response.
+    searcher = GoogleFlightsSearcher()
+    result = _make_ff_result([
+        _make_ff_flight(name="Azul", stops="Unknown", price="R$300"),
+        _make_ff_flight(name="LATAM", stops=0, price="R$400"),
+    ])
+    flights = searcher._parse(result, "CNF", "SSA", date(2026, 7, 15))
+    assert len(flights) == 2
+    assert {f.airline for f in flights} == {"Azul", "LATAM"}
 
 
 def test_parse_skips_invalid_price():
