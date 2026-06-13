@@ -5,13 +5,18 @@ from datetime import date
 from functools import partial
 from typing import List, Optional
 
-from fast_flights import FlightData, Passengers, get_flights
+from fast_flights import FlightData, Passengers
+# get_flights() does not expose the currency; call the engine directly so we can
+# pin BRL. Without this, prices follow the runner's IP (USD from GitHub's US IP).
+from fast_flights.core import get_flights_from_filter
+from fast_flights.filter import TFSData
 
 from airlines.base import Flight, FlightSearcher
 
 logger = logging.getLogger(__name__)
 
 _BOOKING_BASE = "https://www.google.com/travel/flights"
+_CURRENCY = "BRL"
 
 
 def _parse_time(raw: str) -> str:
@@ -65,13 +70,14 @@ class GoogleFlightsSearcher(FlightSearcher):
 
     async def search(self, origin: str, destination: str, departure_date: date) -> List[Flight]:
         date_str = departure_date.strftime("%Y-%m-%d")
-        fn = partial(
-            get_flights,
+        tfs = TFSData.from_interface(
             flight_data=[FlightData(date=date_str, from_airport=origin, to_airport=destination)],
-            passengers=Passengers(adults=1),
             trip="one-way",
+            passengers=Passengers(adults=1),
             seat="economy",
+            max_stops=None,
         )
+        fn = partial(get_flights_from_filter, tfs, currency=_CURRENCY, mode="common")
         loop = asyncio.get_running_loop()
         try:
             result = await loop.run_in_executor(None, fn)

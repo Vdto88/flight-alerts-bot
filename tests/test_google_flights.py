@@ -107,7 +107,7 @@ def test_parse_empty_result():
 async def test_search_returns_flights():
     searcher = GoogleFlightsSearcher()
     ff_result = _make_ff_result([_make_ff_flight()])
-    with patch("airlines.google_flights.get_flights", return_value=ff_result):
+    with patch("airlines.google_flights.get_flights_from_filter", return_value=ff_result):
         flights = await searcher.search("GRU", "CGH", date(2026, 5, 15))
     assert len(flights) == 1
     assert flights[0].price == 289.0
@@ -115,6 +115,16 @@ async def test_search_returns_flights():
 
 async def test_search_returns_empty_on_exception():
     searcher = GoogleFlightsSearcher()
-    with patch("airlines.google_flights.get_flights", side_effect=Exception("network error")):
+    with patch("airlines.google_flights.get_flights_from_filter", side_effect=Exception("network error")):
         flights = await searcher.search("GRU", "CGH", date(2026, 5, 15))
     assert flights == []
+
+
+async def test_search_pins_currency_to_brl():
+    # Prices must be requested in BRL regardless of where the bot runs, otherwise
+    # the GitHub (US IP) runner returns USD values mislabeled as R$.
+    searcher = GoogleFlightsSearcher()
+    ff_result = _make_ff_result([_make_ff_flight()])
+    with patch("airlines.google_flights.get_flights_from_filter", return_value=ff_result) as m:
+        await searcher.search("CNF", "GIG", date(2026, 7, 18))
+    assert m.call_args.kwargs.get("currency") == "BRL"
