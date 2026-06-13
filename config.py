@@ -5,31 +5,32 @@ load_dotenv()
 
 TELEGRAM_BOT_TOKEN: str = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHANNEL_ID: str = os.environ.get("TELEGRAM_CHANNEL_ID", "")
-GOL_API_KEY: str = os.getenv("GOL_API_KEY", "aaa-bbb")
 
-ROUTES = [
-    {"from": "CNF", "to": "GRU", "threshold": 350,  "airlines": ["GOL", "LATAM", "AZUL"]},
-    {"from": "GRU", "to": "LIS", "threshold": 2000, "airlines": ["LATAM", "GOL"]},
-    {"from": "GRU", "to": "MIA", "threshold": 1500, "airlines": ["LATAM", "GOL"]},
-    {"from": "CNF", "to": "SSA", "threshold": 2000, "airlines": ["GOL", "AZUL", "LATAM"]},
+# --- Azul-cheapest alert ---
+AZUL_HUB: str = "CNF"
+AZUL_DESTINATIONS: list[str] = [
+    # Domestic
+    "GIG", "SDU", "CGH", "SSA", "SLZ", "IGU", "FLN", "NVT",
+    # Patagonia / Chile / Argentina (rarely fire — kept on purpose)
+    "FTE", "PNT", "PMC", "PUQ", "SCL", "BRC",
 ]
 
-SEARCH_DAYS_AHEAD: int = 60
-BATCH_SIZE: int = 7
-CYCLE_MINUTES: int = 45
-CACHE_TTL_HOURS: int = 24
-REQUEST_TIMEOUT: float = 15.0
-REQUEST_RETRIES: int = 2
-REQUEST_RETRY_BACKOFF: float = 2.0
+# Rolling window of departure dates to check, in days from today.
+WINDOW_MIN_DAYS: int = 30
+WINDOW_MAX_DAYS: int = 90
 
+# Optional: pin explicit ISO dates for a destination instead of the rolling window.
+# e.g. {"SCL": ["2026-12-15", "2026-12-16"]}
+AZUL_DATE_OVERRIDES: dict[str, list[str]] = {}
+
+BATCH_SIZE: int = 7          # concurrent Google Flights queries per batch
+CACHE_TTL_HOURS: int = 24    # dedup window
+
+# --- Miles (dormant; consumed only by scripts/harvest_cookies.py) ---
 MILES_ROUTES = [
     {"from": "CNF", "to": "IGU", "miles_threshold": 15000, "program": "SMILES"},
     {"from": "IGU", "to": "CNF", "miles_threshold": 15000, "program": "SMILES"},
     {"from": "CNF", "to": "IGU", "miles_threshold": 20000, "program": "AZUL_MILES"},
     {"from": "IGU", "to": "CNF", "miles_threshold": 20000, "program": "AZUL_MILES"},
 ]
-
-# 30 dias é suficiente — cada data requer uma sessão Playwright (~5–10s)
-# 30 datas × 4 rotas × ~7s = ~14 min por ciclo, dentro do MILES_CYCLE_MINUTES
 MILES_DAYS_AHEAD: int = 30
-MILES_CYCLE_MINUTES: int = 60
