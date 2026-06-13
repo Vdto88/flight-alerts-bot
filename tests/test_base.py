@@ -94,3 +94,36 @@ def test_money_cache_key_unchanged_when_no_miles():
         booking_url="https://example.com",
     )
     assert flight.cache_key() == "GOL|CNF|GRU|2026-05-15|280"
+
+
+from airlines.base import FlightSearcher
+
+
+class _FakeSearcher(FlightSearcher):
+    AIRLINE_NAME = "FAKE"
+
+    def __init__(self, fail_on=None):
+        self.fail_on = fail_on
+        self.seen = []
+
+    async def search(self, origin, destination, departure_date):
+        self.seen.append(departure_date)
+        if self.fail_on is not None and departure_date == self.fail_on:
+            raise RuntimeError("boom")
+        return [Flight(origin, destination, "FAKE", departure_date,
+                       "10h00", "11h00", 100.0, True, 0, "url")]
+
+
+async def test_search_dates_returns_one_flight_per_date():
+    s = _FakeSearcher()
+    dates = [date(2026, 7, 1), date(2026, 7, 2), date(2026, 7, 3)]
+    flights = await s.search_dates("CNF", "SSA", dates, batch_size=2)
+    assert len(flights) == 3
+    assert {f.departure_date for f in flights} == set(dates)
+
+
+async def test_search_dates_skips_failed_date():
+    s = _FakeSearcher(fail_on=date(2026, 7, 2))
+    dates = [date(2026, 7, 1), date(2026, 7, 2), date(2026, 7, 3)]
+    flights = await s.search_dates("CNF", "SSA", dates, batch_size=3)
+    assert len(flights) == 2

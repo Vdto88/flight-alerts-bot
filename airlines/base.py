@@ -62,3 +62,19 @@ class FlightSearcher(ABC):
                     logger.warning(f"{self.AIRLINE_NAME} batch error: {result}")
 
         return all_flights
+
+    async def search_dates(
+        self, origin: str, destination: str, dates: List[date], batch_size: int = 7
+    ) -> List[Flight]:
+        """Search an explicit list of departure dates in concurrent batches."""
+        all_flights: List[Flight] = []
+        for start in range(0, len(dates), batch_size):
+            batch = dates[start:start + batch_size]
+            tasks = [self.search(origin, destination, d) for d in batch]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for result in results:
+                if isinstance(result, list):
+                    all_flights.extend(result)
+                else:
+                    logger.warning(f"{self.AIRLINE_NAME} search_dates error: {result}")
+        return all_flights
