@@ -46,6 +46,7 @@ async def test_run_cycle_sends_alert_when_azul_cheapest(monkeypatch):
 
     async def fake_send(flight, comparison):
         sent.append((flight, comparison))
+        return True
 
     monkeypatch.setattr(telegram_bot, "send_azul_alert", fake_send)
 
@@ -73,6 +74,7 @@ async def test_run_cycle_dedups_within_ttl(monkeypatch):
 
     async def fake_send(flight, comparison):
         sent.append(flight)
+        return True
 
     monkeypatch.setattr(telegram_bot, "send_azul_alert", fake_send)
 
@@ -80,3 +82,29 @@ async def test_run_cycle_dedups_within_ttl(monkeypatch):
     await cycle.run_azul_cycle()   # second pass: same flight, must be deduped
 
     assert len(sent) == 1
+
+
+async def test_run_cycle_retries_when_send_fails(monkeypatch):
+    await cache.init_db()
+    d = date(2026, 7, 15)
+    canned = [
+        Flight("CNF", "SSA", "Azul", d, "12h00", "13h15", 300.0, True, 0, "u"),
+        Flight("CNF", "SSA", "LATAM", d, "07h00", "08h15", 396.0, True, 0, "u"),
+    ]
+
+    async def fake_search_dates(self, origin, destination, dates, batch_size=7):
+        return canned if (origin, destination) == ("CNF", "SSA") else []
+
+    monkeypatch.setattr(GoogleFlightsSearcher, "search_dates", fake_search_dates)
+    attempts = []
+
+    async def failing_send(flight, comparison):
+        attempts.append(flight)
+        return False   # send failed → must NOT be cached
+
+    monkeypatch.setattr(telegram_bot, "send_azul_alert", failing_send)
+
+    await cycle.run_azul_cycle()
+    await cycle.run_azul_cycle()   # send failed before → retried, not deduped
+
+    assert len(attempts) == 2

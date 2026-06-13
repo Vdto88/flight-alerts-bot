@@ -105,7 +105,9 @@ def format_azul_alert(flight: Flight, comparison: AzulComparison) -> str:
     )
 
 
-async def send_azul_alert(flight: Flight, comparison: AzulComparison) -> None:
+async def send_azul_alert(flight: Flight, comparison: AzulComparison) -> bool:
+    """Returns True if the alert was sent, False otherwise (so the caller only
+    marks it as seen on success — a failed send must be retried next cycle)."""
     message = format_azul_alert(flight, comparison)
     try:
         bot = get_bot()
@@ -120,5 +122,7 @@ async def send_azul_alert(flight: Flight, comparison: AzulComparison) -> None:
             f"R${flight.price:.2f} (vs {comparison.competitor} R${comparison.competitor_price:.2f}) "
             f"{flight.departure_date}"
         )
+        return True
     except Exception as e:
         logger.error(f"Falha ao enviar alerta Azul: {e}")
+        return False

@@ -51,9 +51,10 @@ async def run_azul_cycle() -> None:
         alerts = evaluate(flights)
         for alert in alerts:
             if not await cache.is_cached(alert.flight):
-                await telegram_bot.send_azul_alert(alert.flight, alert.comparison)
-                await cache.save_to_cache(alert.flight, CACHE_TTL_HOURS)
-                total_alerts += 1
+                sent = await telegram_bot.send_azul_alert(alert.flight, alert.comparison)
+                if sent:
+                    await cache.save_to_cache(alert.flight, CACHE_TTL_HOURS)
+                    total_alerts += 1
 
         logger.info(
             f"AZUL {origin}→{dest}: {len(flights)} voos, {len(alerts)} datas com Azul mais barata"

@@ -169,4 +169,5 @@ async def test_send_azul_alert_swallows_errors(monkeypatch):
     f = _Flight("CNF", "SSA", "Azul", _date(2026, 7, 15), "12h00", "13h15",
                 300.0, True, 0, "https://book")
     comp = _AzulComparison(competitor="LATAM", competitor_price=396.0, savings=96.0)
-    await _tb.send_azul_alert(f, comp)   # must not raise
+    result = await _tb.send_azul_alert(f, comp)   # must not raise
+    assert result is False
