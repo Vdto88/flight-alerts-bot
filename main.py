@@ -4,7 +4,7 @@ import logging.handlers
 from pathlib import Path
 
 import cache
-from scheduler import create_scheduler
+from cycle import run_azul_cycle
 
 
 def setup_logging() -> None:
@@ -28,18 +28,9 @@ def setup_logging() -> None:
 async def main() -> None:
     setup_logging()
     log = logging.getLogger(__name__)
-
     await cache.init_db()
-    scheduler = create_scheduler()
-    scheduler.start()
-    log.info("Bot iniciado. Pressione Ctrl+C para parar.")
-
-    try:
-        while True:
-            await asyncio.sleep(3600)
-    except (KeyboardInterrupt, SystemExit):
-        scheduler.shutdown()
-        log.info("Bot encerrado.")
+    await run_azul_cycle()
+    log.info("Passe concluído.")
 
 
 if __name__ == "__main__":
