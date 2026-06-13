@@ -1,0 +1,38 @@
+name: Azul cheaper alert
+
+on:
+  schedule:
+    - cron: "0 11,17,23 * * *"   # ~08:00 / 14:00 / 20:00 BRT (UTC-3)
+  workflow_dispatch: {}
+
+concurrency:
+  group: azul-alert
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Restore dedup cache
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: azul-dedup-${{ github.run_id }}
+          restore-keys: |
+            azul-dedup-
+
+      - name: Run one pass
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+        run: python main.py
