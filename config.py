@@ -1,4 +1,8 @@
+import calendar
 import os
+from dataclasses import dataclass
+from datetime import date
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -8,6 +12,41 @@ TELEGRAM_CHANNEL_ID: str = os.environ.get("TELEGRAM_CHANNEL_ID", "")
 
 # --- Azul-cheapest alert ---
 AZUL_HUB: str = "CNF"
+
+
+@dataclass(frozen=True)
+class SearchWindow:
+    start: date          # inclusive
+    end: date            # inclusive
+
+
+def month(year: int, m: int) -> "SearchWindow":
+    """Whole calendar month as a window. month(2027, 2) -> Feb 1..Feb 28/29."""
+    last = calendar.monthrange(year, m)[1]
+    return SearchWindow(date(year, m, 1), date(year, m, last))
+
+
+@dataclass(frozen=True)
+class Group:
+    name: str                                  # display name; also the topic name
+    airports: tuple[str, ...]                  # IATA codes
+    windows: tuple[SearchWindow, ...] = ()     # extra ranges; empty = rolling-only
+    topic_id: int | None = None                # Telegram forum topic id; None = General
+
+
+GROUPS: list[Group] = [
+    Group("Rio de Janeiro", ("GIG", "SDU")),
+    Group("São Paulo",      ("CGH",)),
+    Group("São Luís",       ("SLZ",)),
+    Group("Sul",            ("FLN", "NVT")),
+    Group("Foz do Iguaçu",  ("IGU",), (month(2026, 10),)),
+    Group("Patagônia",      ("FTE", "PNT", "PMC", "PUQ", "BRC", "SCL"), (month(2027, 2),)),
+    # --- Europa ---
+    Group("Portugal",       ("LIS", "OPO")),
+    Group("Espanha",        ("MAD", "BCN")),
+    Group("Itália",         ("FCO", "MXP")),
+    Group("França",         ("CDG", "ORY")),
+]
 AZUL_DESTINATIONS: list[str] = [
     # Domestic
     "GIG", "SDU", "CGH", "SSA", "SLZ", "IGU", "FLN", "NVT",
