@@ -47,20 +47,9 @@ GROUPS: list[Group] = [
     Group("Itália",         ("FCO", "MXP")),
     Group("França",         ("CDG", "ORY")),
 ]
-AZUL_DESTINATIONS: list[str] = [
-    # Domestic
-    "GIG", "SDU", "CGH", "SSA", "SLZ", "IGU", "FLN", "NVT",
-    # Patagonia / Chile / Argentina (rarely fire — kept on purpose)
-    "FTE", "PNT", "PMC", "PUQ", "SCL", "BRC",
-]
-
 # Rolling window of departure dates to check, in days from today.
 WINDOW_MIN_DAYS: int = 30
 WINDOW_MAX_DAYS: int = 90
-
-# Optional: pin explicit ISO dates for a destination instead of the rolling window.
-# e.g. {"SCL": ["2026-12-15", "2026-12-16"]}
-AZUL_DATE_OVERRIDES: dict[str, list[str]] = {}
 
 BATCH_SIZE: int = 7          # concurrent Google Flights queries per batch
 CACHE_TTL_HOURS: int = 24    # dedup window
