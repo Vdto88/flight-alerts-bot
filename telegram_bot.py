@@ -105,24 +105,44 @@ def format_azul_alert(flight: Flight, comparison: AzulComparison) -> str:
     )
 
 
-async def send_azul_alert(flight: Flight, comparison: AzulComparison) -> bool:
+async def send_azul_alert(flight: Flight, comparison: AzulComparison,
+                          topic_id: int | None = None) -> bool:
     """Returns True if the alert was sent, False otherwise (so the caller only
-    marks it as seen on success — a failed send must be retried next cycle)."""
+    marks it as seen on success — a failed send must be retried next cycle).
+    Posts to the forum topic `topic_id` when given; if that send fails (topic
+    deleted, chat isn't a forum, ...) it retries once on the General thread."""
     message = format_azul_alert(flight, comparison)
     try:
         bot = get_bot()
+    except Exception as e:
+        logger.error(f"Falha ao criar bot Telegram: {e}")
+        return False
+
+    async def _send(thread_id: int | None) -> None:
         await bot.send_message(
             chat_id=TELEGRAM_CHANNEL_ID,
             text=message,
             parse_mode=ParseMode.MARKDOWN,
             link_preview_options=LinkPreviewOptions(is_disabled=True),
+            message_thread_id=thread_id,
         )
-        logger.info(
-            f"Alerta Azul enviado: {flight.origin}→{flight.destination} "
-            f"R${flight.price:.2f} (vs {comparison.competitor} R${comparison.competitor_price:.2f}) "
-            f"{flight.departure_date}"
-        )
-        return True
+
+    try:
+        await _send(topic_id)
     except Exception as e:
-        logger.error(f"Falha ao enviar alerta Azul: {e}")
-        return False
+        if topic_id is None:
+            logger.error(f"Falha ao enviar alerta Azul: {e}")
+            return False
+        logger.warning(f"Tópico {topic_id} falhou, tentando Geral: {e}")
+        try:
+            await _send(None)
+        except Exception as e2:
+            logger.error(f"Falha ao enviar alerta Azul (Geral): {e2}")
+            return False
+
+    logger.info(
+        f"Alerta Azul enviado: {flight.origin}→{flight.destination} "
+        f"R${flight.price:.2f} (vs {comparison.competitor} R${comparison.competitor_price:.2f}) "
+        f"{flight.departure_date}"
+    )
+    return True

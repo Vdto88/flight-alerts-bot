@@ -171,3 +171,46 @@ async def test_send_azul_alert_swallows_errors(monkeypatch):
     comp = _AzulComparison(competitor="LATAM", competitor_price=396.0, savings=96.0)
     result = await _tb.send_azul_alert(f, comp)   # must not raise
     assert result is False
+
+
+async def test_send_azul_alert_passes_topic_id(monkeypatch):
+    mock_bot = AsyncMock()
+    mock_bot.send_message = AsyncMock()
+    monkeypatch.setattr(_tb, "get_bot", lambda: mock_bot)
+    f = _Flight("CNF", "IGU", "Azul", _date(2026, 7, 15), "12h00", "13h15",
+                300.0, True, 0, "https://book")
+    comp = _AzulComparison(competitor="LATAM", competitor_price=396.0, savings=96.0)
+    result = await _tb.send_azul_alert(f, comp, topic_id=42)
+    assert result is True
+    assert mock_bot.send_message.call_args.kwargs["message_thread_id"] == 42
+
+
+async def test_send_azul_alert_no_topic_posts_to_general(monkeypatch):
+    mock_bot = AsyncMock()
+    mock_bot.send_message = AsyncMock()
+    monkeypatch.setattr(_tb, "get_bot", lambda: mock_bot)
+    f = _Flight("CNF", "GIG", "Azul", _date(2026, 7, 15), "12h00", "13h15",
+                300.0, True, 0, "https://book")
+    comp = _AzulComparison(competitor="LATAM", competitor_price=396.0, savings=96.0)
+    result = await _tb.send_azul_alert(f, comp)
+    assert result is True
+    assert mock_bot.send_message.call_args.kwargs["message_thread_id"] is None
+
+
+async def test_send_azul_alert_falls_back_to_general_on_topic_failure(monkeypatch):
+    calls = []
+
+    async def send_message(**kwargs):
+        calls.append(kwargs["message_thread_id"])
+        if kwargs["message_thread_id"] is not None:
+            raise RuntimeError("topic gone")
+
+    mock_bot = MagicMock()
+    mock_bot.send_message = send_message
+    monkeypatch.setattr(_tb, "get_bot", lambda: mock_bot)
+    f = _Flight("CNF", "IGU", "Azul", _date(2026, 7, 15), "12h00", "13h15",
+                300.0, True, 0, "https://book")
+    comp = _AzulComparison(competitor="LATAM", competitor_price=396.0, savings=96.0)
+    result = await _tb.send_azul_alert(f, comp, topic_id=42)
+    assert result is True
+    assert calls == [42, None]   # tried the topic, then General
