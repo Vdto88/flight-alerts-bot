@@ -36,9 +36,9 @@ class Group:
 
 @dataclass(frozen=True)
 class PriceWatch:
-    airport: str          # IATA; must be a member of some Group (for routing + topic)
-    window: SearchWindow  # e.g. month(2026, 9)
-    max_price: float      # BRL; alert when the cheapest fare (any airline) <= this
+    airport: str                 # IATA; must be a member of some Group (for routing + topic)
+    window: SearchWindow | None  # month to watch; None = standing (rolling window only)
+    max_price: float             # BRL; alert when the cheapest fare (any airline) <= this
 
 
 GROUPS: list[Group] = [
@@ -56,6 +56,7 @@ GROUPS: list[Group] = [
 ]
 PRICE_WATCHES: list[PriceWatch] = [
     PriceWatch("SJK", month(2026, 9), 400.0),   # São José dos Campos, Sep/2026, <= R$400
+    PriceWatch("SLZ", None, 600.0),             # São Luís, standing (rolling window), <= R$600
 ]
 
 # Rolling window of departure dates to check, in days from today.

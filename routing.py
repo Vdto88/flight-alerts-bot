@@ -49,6 +49,6 @@ def target_dates(airport: str, today: date, groups: list[Group],
         for w in g.windows:
             dates.update(_window_dates(w.start, w.end))
     for pw in watches:
-        if pw.airport == airport:
+        if pw.airport == airport and pw.window is not None:
             dates.update(_window_dates(pw.window.start, pw.window.end))
     return sorted(d for d in dates if d >= today)

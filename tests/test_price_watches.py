@@ -21,3 +21,10 @@ def test_price_watches_has_sjk_september_example():
     assert "SJK" in by_airport
     assert by_airport["SJK"].window == config.month(2026, 9)
     assert by_airport["SJK"].max_price == 400.0
+
+
+def test_slz_is_a_standing_watch():
+    by_airport = {w.airport: w for w in config.PRICE_WATCHES}
+    assert "SLZ" in by_airport
+    assert by_airport["SLZ"].window is None      # standing: no fixed month
+    assert by_airport["SLZ"].max_price == 600.0

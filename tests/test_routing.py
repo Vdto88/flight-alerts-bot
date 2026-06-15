@@ -91,3 +91,11 @@ def test_target_dates_watches_default_empty():
     today = date(2026, 1, 1)
     dates = routing.target_dates("GIG", today, config.GROUPS, 30, 90)
     assert len(dates) == 61   # unchanged when no watches passed
+
+
+def test_target_dates_standing_watch_adds_no_dates():
+    today = date(2026, 1, 1)
+    custom = [config.Group("T", ("ZZZ",))]
+    watches = [config.PriceWatch("ZZZ", None, 600.0)]   # standing, no window
+    dates = routing.target_dates("ZZZ", today, custom, 30, 90, watches)
+    assert len(dates) == 61   # rolling only; a None-window watch adds nothing

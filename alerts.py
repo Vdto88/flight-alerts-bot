@@ -83,7 +83,8 @@ def evaluate_threshold(flights: list[Flight], watches: list[PriceWatch]) -> list
         cheapest = min(day_flights, key=lambda f: f.price)
         matching = [
             w for w in watches
-            if w.window.start <= d <= w.window.end and cheapest.price <= w.max_price
+            if (w.window is None or w.window.start <= d <= w.window.end)
+            and cheapest.price <= w.max_price
         ]
         if matching:
             best = min(matching, key=lambda w: w.max_price)

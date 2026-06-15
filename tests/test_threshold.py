@@ -48,3 +48,16 @@ def test_picks_tightest_satisfied_limit_when_two_watches_overlap():
     alerts = evaluate_threshold([_f("GOL", 300.0)], watches)
     assert len(alerts) == 1
     assert alerts[0].max_price == 350.0   # smallest limit the fare still satisfies
+
+
+def test_standing_watch_matches_any_date():
+    # window=None applies to every date (no month restriction)
+    flights = [_f("LATAM", 550.0, date(2099, 7, 15))]
+    alerts = evaluate_threshold(flights, [PriceWatch("SLZ", None, 600.0)])
+    assert len(alerts) == 1
+    assert alerts[0].max_price == 600.0
+
+
+def test_standing_watch_respects_limit():
+    flights = [_f("LATAM", 650.0, date(2099, 7, 15))]
+    assert evaluate_threshold(flights, [PriceWatch("SLZ", None, 600.0)]) == []
