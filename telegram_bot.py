@@ -146,3 +146,58 @@ async def send_azul_alert(flight: Flight, comparison: AzulComparison,
         f"{flight.departure_date}"
     )
     return True
+
+
+def format_price_alert(flight: Flight, max_price: float) -> str:
+    dep_date = flight.departure_date.strftime("%d/%m/%Y")
+    now_str = datetime.now().strftime("%H:%M")
+    return (
+        f"✈️ *PASSAGEM BARATA DETECTADA*\n\n"
+        f"🛫 {flight.origin} → {flight.destination}\n"
+        f"💰 {_format_brl(flight.price)}\n"
+        f"🎯 abaixo do seu limite de {_format_brl(max_price)}\n"
+        f"📅 {dep_date} • {flight.departure_time} → {flight.arrival_time}\n"
+        f"🏢 {flight.airline} • {_stops_label(flight)}\n"
+        f"🔗 [Reservar agora]({flight.booking_url})\n\n"
+        f"⏰ Detectado às {now_str}"
+    )
+
+
+async def send_price_alert(flight: Flight, max_price: float,
+                           topic_id: int | None = None) -> bool:
+    """Returns True only on a successful send. Posts to the forum topic `topic_id`;
+    if that fails it retries once on the General thread."""
+    message = format_price_alert(flight, max_price)
+    try:
+        bot = get_bot()
+    except Exception as e:
+        logger.error(f"Falha ao criar bot Telegram: {e}")
+        return False
+
+    async def _send(thread_id: int | None) -> None:
+        await bot.send_message(
+            chat_id=TELEGRAM_CHANNEL_ID,
+            text=message,
+            parse_mode=ParseMode.MARKDOWN,
+            link_preview_options=LinkPreviewOptions(is_disabled=True),
+            message_thread_id=thread_id,
+        )
+
+    try:
+        await _send(topic_id)
+    except Exception as e:
+        if topic_id is None:
+            logger.error(f"Falha ao enviar alerta de preço: {e}")
+            return False
+        logger.warning(f"Tópico {topic_id} falhou, tentando Geral: {e}")
+        try:
+            await _send(None)
+        except Exception as e2:
+            logger.error(f"Falha ao enviar alerta de preço (Geral): {e2}")
+            return False
+
+    logger.info(
+        f"Alerta de preço enviado: {flight.origin}→{flight.destination} "
+        f"{flight.airline} R${flight.price:.2f} (limite R${max_price:.2f}) {flight.departure_date}"
+    )
+    return True
