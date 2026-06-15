@@ -127,3 +127,19 @@ async def test_search_dates_skips_failed_date():
     dates = [date(2026, 7, 1), date(2026, 7, 2), date(2026, 7, 3)]
     flights = await s.search_dates("CNF", "SSA", dates, batch_size=3)
     assert len(flights) == 2
+
+
+from datetime import date as _d
+from airlines.base import Flight as _Flight
+
+
+def test_cache_key_default_is_unprefixed():
+    f = _Flight("CNF", "SJK", "GOL", _d(2026, 9, 10), "08h00", "09h00",
+                380.0, True, 0, "u")
+    assert f.cache_key() == "GOL|CNF|SJK|2026-09-10|380"
+
+
+def test_cache_key_kind_prefixes():
+    f = _Flight("CNF", "SJK", "GOL", _d(2026, 9, 10), "08h00", "09h00",
+                380.0, True, 0, "u")
+    assert f.cache_key(kind="price") == "price|" + f.cache_key()

@@ -30,12 +30,13 @@ class Flight:
     def is_miles_flight(self) -> bool:
         return self.miles is not None
 
-    def cache_key(self) -> str:
+    def cache_key(self, kind: str = "") -> str:
+        prefix = f"{kind}|" if kind else ""
         if self.miles is not None:
             miles_floor = (self.miles // 1000) * 1000
-            return f"{self.airline}|{self.origin}|{self.destination}|{self.departure_date}|{miles_floor}mi"
+            return f"{prefix}{self.airline}|{self.origin}|{self.destination}|{self.departure_date}|{miles_floor}mi"
         price_floor = math.floor(self.price / 10) * 10
-        return f"{self.airline}|{self.origin}|{self.destination}|{self.departure_date}|{price_floor}"
+        return f"{prefix}{self.airline}|{self.origin}|{self.destination}|{self.departure_date}|{price_floor}"
 
 
 class FlightSearcher(ABC):
