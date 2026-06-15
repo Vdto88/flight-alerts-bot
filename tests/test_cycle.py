@@ -110,3 +110,88 @@ async def test_run_cycle_passes_group_topic_id(monkeypatch):
     await cycle.run_azul_cycle()
 
     assert sent == [99]   # the route's topic_id reached the send call
+
+
+async def test_run_cycle_sends_price_alert_to_region_topic(monkeypatch):
+    await cache.init_db()
+    d = date(2026, 9, 10)
+    canned = [Flight("CNF", "SJK", "GOL", d, "08h00", "09h00", 380.0, True, 0, "u")]
+
+    async def fake_search_dates(self, origin, destination, dates, batch_size=7):
+        return canned if (origin, destination) == ("CNF", "SJK") else []
+
+    monkeypatch.setattr(GoogleFlightsSearcher, "search_dates", fake_search_dates)
+    monkeypatch.setattr(cycle, "GROUPS", [config.Group("SP", ("SJK",), topic_id=6)])
+    monkeypatch.setattr(cycle, "PRICE_WATCHES", [config.PriceWatch("SJK", config.month(2026, 9), 400.0)])
+
+    sent = []
+
+    async def fake_price(flight, max_price, topic_id=None):
+        sent.append((flight, max_price, topic_id))
+        return True
+
+    monkeypatch.setattr(telegram_bot, "send_price_alert", fake_price)
+
+    await cycle.run_azul_cycle()
+
+    assert len(sent) == 1
+    flight, max_price, topic_id = sent[0]
+    assert flight.airline == "GOL" and max_price == 400.0 and topic_id == 6
+
+
+async def test_run_cycle_dedups_price_alert(monkeypatch):
+    await cache.init_db()
+    d = date(2026, 9, 10)
+    canned = [Flight("CNF", "SJK", "GOL", d, "08h00", "09h00", 380.0, True, 0, "u")]
+
+    async def fake_search_dates(self, origin, destination, dates, batch_size=7):
+        return canned if (origin, destination) == ("CNF", "SJK") else []
+
+    monkeypatch.setattr(GoogleFlightsSearcher, "search_dates", fake_search_dates)
+    monkeypatch.setattr(cycle, "GROUPS", [config.Group("SP", ("SJK",), topic_id=6)])
+    monkeypatch.setattr(cycle, "PRICE_WATCHES", [config.PriceWatch("SJK", config.month(2026, 9), 400.0)])
+
+    sent = []
+
+    async def fake_price(flight, max_price, topic_id=None):
+        sent.append(flight)
+        return True
+
+    monkeypatch.setattr(telegram_bot, "send_price_alert", fake_price)
+
+    await cycle.run_azul_cycle()
+    await cycle.run_azul_cycle()
+    assert len(sent) == 1   # price namespace dedups the second pass
+
+
+async def test_run_cycle_azul_and_price_both_fire(monkeypatch):
+    await cache.init_db()
+    d = date(2026, 9, 10)
+    canned = [
+        Flight("CNF", "SJK", "Azul", d, "08h00", "09h00", 300.0, True, 0, "u"),
+        Flight("CNF", "SJK", "LATAM", d, "07h00", "08h00", 450.0, True, 0, "u"),
+    ]
+
+    async def fake_search_dates(self, origin, destination, dates, batch_size=7):
+        return canned if (origin, destination) == ("CNF", "SJK") else []
+
+    monkeypatch.setattr(GoogleFlightsSearcher, "search_dates", fake_search_dates)
+    monkeypatch.setattr(cycle, "GROUPS", [config.Group("SP", ("SJK",), topic_id=6)])
+    monkeypatch.setattr(cycle, "PRICE_WATCHES", [config.PriceWatch("SJK", config.month(2026, 9), 400.0)])
+
+    azul_sent, price_sent = [], []
+
+    async def fake_azul(flight, comparison, topic_id=None):
+        azul_sent.append(flight)
+        return True
+
+    async def fake_price(flight, max_price, topic_id=None):
+        price_sent.append(flight)
+        return True
+
+    monkeypatch.setattr(telegram_bot, "send_azul_alert", fake_azul)
+    monkeypatch.setattr(telegram_bot, "send_price_alert", fake_price)
+
+    await cycle.run_azul_cycle()
+    assert len(azul_sent) == 1   # Azul is cheapest (300 < 450)
+    assert len(price_sent) == 1  # 300 <= 400 limit — independent namespaces
