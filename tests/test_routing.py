@@ -66,3 +66,28 @@ def test_target_dates_drops_fully_past_window():
     assert all(d >= today for d in dates)
     assert date(2020, 1, 15) not in dates
     assert len(dates) == 61  # rolling only
+
+
+def test_target_dates_includes_price_watch_window():
+    today = date(2026, 1, 1)
+    custom = [config.Group("T", ("ZZZ",))]
+    watches = [config.PriceWatch("ZZZ", config.SearchWindow(date(2027, 1, 1), date(2027, 1, 31)), 500.0)]
+    dates = routing.target_dates("ZZZ", today, custom, 30, 90, watches)
+    assert date(2027, 1, 1) in dates    # a month far outside the rolling window
+    assert date(2027, 1, 31) in dates
+    assert dates == sorted(dates)
+
+
+def test_target_dates_ignores_watch_for_other_airport():
+    today = date(2026, 1, 1)
+    custom = [config.Group("T", ("ZZZ",))]
+    watches = [config.PriceWatch("YYY", config.SearchWindow(date(2027, 1, 1), date(2027, 1, 31)), 500.0)]
+    dates = routing.target_dates("ZZZ", today, custom, 30, 90, watches)
+    assert date(2027, 1, 1) not in dates
+    assert len(dates) == 61   # rolling only
+
+
+def test_target_dates_watches_default_empty():
+    today = date(2026, 1, 1)
+    dates = routing.target_dates("GIG", today, config.GROUPS, 30, 90)
+    assert len(dates) == 61   # unchanged when no watches passed

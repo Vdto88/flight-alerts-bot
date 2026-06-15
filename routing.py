@@ -40,12 +40,15 @@ def _window_dates(start: date, end: date) -> list[date]:
 
 
 def target_dates(airport: str, today: date, groups: list[Group],
-                 win_min: int, win_max: int) -> list[date]:
-    """Rolling window (today+win_min .. today+win_max) UNION the group's window
-    dates. Deduplicated, sorted ascending, past dates dropped."""
+                 win_min: int, win_max: int, watches=()) -> list[date]:
+    """Rolling window (today+win_min .. today+win_max) UNION the airport's group windows
+    UNION the windows of any PriceWatch for the airport. Deduped, sorted, past dropped."""
     dates: set[date] = {today + timedelta(days=n) for n in range(win_min, win_max + 1)}
     g = group_of(airport, groups)
     if g:
         for w in g.windows:
             dates.update(_window_dates(w.start, w.end))
+    for pw in watches:
+        if pw.airport == airport:
+            dates.update(_window_dates(pw.window.start, pw.window.end))
     return sorted(d for d in dates if d >= today)
