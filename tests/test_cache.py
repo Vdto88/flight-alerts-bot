@@ -67,3 +67,21 @@ async def test_purge_removes_expired(monkeypatch):
 
     await cache.purge_expired()
     assert await cache.is_cached(flight) is False
+
+
+from datetime import date as _date
+from airlines.base import Flight as _Flight
+import cache as _cache
+
+
+def _pw_flight():
+    return _Flight("CNF", "SJK", "GOL", _date(2026, 9, 10), "08h00", "09h00",
+                   380.0, True, 0, "u")
+
+
+async def test_cache_namespaces_are_independent():
+    await _cache.init_db()
+    f = _pw_flight()
+    await _cache.save_to_cache(f, 24, kind="price")
+    assert await _cache.is_cached(f, kind="price") is True
+    assert await _cache.is_cached(f) is False   # default (Azul) namespace untouched
