@@ -37,5 +37,7 @@ def test_foz_and_patagonia_carry_windows():
     assert by_name["Patagônia"].windows == (config.month(2027, 2),)
 
 
-def test_groups_default_to_no_topic():
-    assert all(g.topic_id is None for g in config.GROUPS)
+def test_every_group_has_a_unique_topic_id():
+    assert all(g.topic_id is not None for g in config.GROUPS)
+    ids = [g.topic_id for g in config.GROUPS]
+    assert len(ids) == len(set(ids))   # no two groups share a topic

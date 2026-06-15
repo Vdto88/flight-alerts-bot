@@ -15,7 +15,8 @@ def test_build_routes_carries_non_hub_and_topic():
     routes = routing.build_routes(config.GROUPS, config.AZUL_HUB)
     igu = [r for r in routes if r.non_hub == "IGU"]
     assert len(igu) == 2
-    assert all(r.topic_id is None for r in igu)  # Foz has no topic configured yet
+    foz_topic = routing.group_of("IGU", config.GROUPS).topic_id
+    assert all(r.topic_id == foz_topic for r in igu)  # both directions carry the group's topic
 
 
 def test_group_of_finds_group():

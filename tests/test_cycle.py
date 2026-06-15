@@ -2,6 +2,7 @@ from datetime import date
 
 import cache
 import config
+import routing
 import telegram_bot
 import cycle
 from airlines.base import Flight
@@ -39,7 +40,7 @@ async def test_run_cycle_sends_alert_when_azul_cheapest(monkeypatch):
     flight, comp, topic_id = sent[0]
     assert "azul" in flight.airline.lower()
     assert comp.competitor == "LATAM"
-    assert topic_id is None   # Rio group has no topic configured
+    assert topic_id == routing.group_of("GIG", config.GROUPS).topic_id  # Rio topic
 
 
 async def test_run_cycle_dedups_within_ttl(monkeypatch):

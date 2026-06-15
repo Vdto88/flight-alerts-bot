@@ -31,19 +31,26 @@ async def main() -> None:
         print("Nenhuma mensagem recente. Mande uma mensagem em cada tópico e rode de novo.")
         return
 
-    print(f"{'chat_id':>16}  {'thread_id':>10}  texto")
-    print("-" * 46)
-    seen: set[tuple[int, object]] = set()
+    # Aggregate per (chat_id, thread_id). A topic's NAME comes from the
+    # "forum_topic_created" service message; otherwise fall back to any text seen.
+    labels: dict[tuple[int, object], str] = {}
     for u in updates:
         msg = u.message or u.channel_post
         if not msg:
             continue
         key = (msg.chat_id, msg.message_thread_id)
-        if key in seen:
-            continue
-        seen.add(key)
-        text = (msg.text or "").replace("\n", " ")[:30]
-        print(f"{msg.chat_id:>16}  {str(msg.message_thread_id):>10}  {text}")
+        ftc = getattr(msg, "forum_topic_created", None)
+        if ftc and getattr(ftc, "name", None):
+            labels[key] = ftc.name                       # most authoritative
+        elif key not in labels:
+            labels[key] = (msg.text or "").replace("\n", " ")[:30]
+
+    print(f"{'chat_id':>16}  {'thread_id':>10}  topico")
+    print("-" * 50)
+    for (chat_id, thread_id), label in sorted(
+        labels.items(), key=lambda kv: (kv[0][0], kv[0][1] is not None, kv[0][1] or 0)
+    ):
+        print(f"{chat_id:>16}  {str(thread_id):>10}  {label}")
 
 
 if __name__ == "__main__":

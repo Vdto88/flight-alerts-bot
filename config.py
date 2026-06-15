@@ -35,17 +35,17 @@ class Group:
 
 
 GROUPS: list[Group] = [
-    Group("Rio de Janeiro", ("GIG", "SDU")),
-    Group("São Paulo",      ("CGH",)),
-    Group("São Luís",       ("SLZ",)),
-    Group("Sul",            ("FLN", "NVT")),
-    Group("Foz do Iguaçu",  ("IGU",), (month(2026, 10),)),
-    Group("Patagônia",      ("FTE", "PNT", "PMC", "PUQ", "BRC", "SCL"), (month(2027, 2),)),
+    Group("Rio de Janeiro", ("GIG", "SDU"), topic_id=4),
+    Group("São Paulo",      ("CGH",), topic_id=6),
+    Group("São Luís",       ("SLZ",), topic_id=8),
+    Group("Sul",            ("FLN", "NVT"), topic_id=10),   # tópico "FLORIANÓPOLIS"
+    Group("Foz do Iguaçu",  ("IGU",), (month(2026, 10),), topic_id=2),
+    Group("Patagônia",      ("FTE", "PNT", "PMC", "PUQ", "BRC", "SCL"), (month(2027, 2),), topic_id=12),
     # --- Europa ---
-    Group("Portugal",       ("LIS", "OPO")),
-    Group("Espanha",        ("MAD", "BCN")),
-    Group("Itália",         ("FCO", "MXP")),
-    Group("França",         ("CDG", "ORY")),
+    Group("Portugal",       ("LIS", "OPO"), topic_id=14),
+    Group("Espanha",        ("MAD", "BCN"), topic_id=16),
+    Group("Itália",         ("FCO", "MXP"), topic_id=18),
+    Group("França",         ("CDG", "ORY"), topic_id=20),
 ]
 # Rolling window of departure dates to check, in days from today.
 WINDOW_MIN_DAYS: int = 30
