@@ -34,6 +34,13 @@ class Group:
     topic_id: int | None = None                # Telegram forum topic id; None = General
 
 
+@dataclass(frozen=True)
+class PriceWatch:
+    airport: str          # IATA; must be a member of some Group (for routing + topic)
+    window: SearchWindow  # e.g. month(2026, 9)
+    max_price: float      # BRL; alert when the cheapest fare (any airline) <= this
+
+
 GROUPS: list[Group] = [
     Group("Rio de Janeiro", ("GIG", "SDU"), topic_id=4),
     Group("São Paulo",      ("CGH", "SJK"), topic_id=6),
@@ -47,6 +54,10 @@ GROUPS: list[Group] = [
     Group("Itália",         ("FCO", "MXP"), topic_id=18),
     Group("França",         ("CDG", "ORY"), topic_id=20),
 ]
+PRICE_WATCHES: list[PriceWatch] = [
+    PriceWatch("SJK", month(2026, 9), 400.0),   # São José dos Campos, Sep/2026, <= R$400
+]
+
 # Rolling window of departure dates to check, in days from today.
 WINDOW_MIN_DAYS: int = 30
 WINDOW_MAX_DAYS: int = 120
