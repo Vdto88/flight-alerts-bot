@@ -49,7 +49,7 @@ GROUPS: list[Group] = [
 ]
 # Rolling window of departure dates to check, in days from today.
 WINDOW_MIN_DAYS: int = 30
-WINDOW_MAX_DAYS: int = 90
+WINDOW_MAX_DAYS: int = 120
 
 BATCH_SIZE: int = 7          # concurrent Google Flights queries per batch
 CACHE_TTL_HOURS: int = 24    # dedup window
