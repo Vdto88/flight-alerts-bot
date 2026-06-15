@@ -17,10 +17,9 @@ def test_groups_have_no_ssa():
     assert "SSA" not in airports
 
 
-def test_total_airports_unique_count():
+def test_group_airports_have_no_duplicates():
     airports = [a for g in config.GROUPS for a in g.airports]
-    assert len(airports) == 21
-    assert len(set(airports)) == 21
+    assert len(airports) == len(set(airports))   # no IATA code shared across groups
 
 
 def test_groups_include_europe_with_two_airports_each():
@@ -34,7 +33,7 @@ def test_groups_include_europe_with_two_airports_each():
 def test_foz_and_patagonia_carry_windows():
     by_name = {g.name: g for g in config.GROUPS}
     assert by_name["Foz do Iguaçu"].windows == (config.month(2026, 10),)
-    assert by_name["Patagônia"].windows == (config.month(2027, 2),)
+    assert by_name["Patagônia"].windows == (config.month(2027, 2), config.month(2027, 3))
 
 
 def test_every_group_has_a_unique_topic_id():

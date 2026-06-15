@@ -36,11 +36,11 @@ class Group:
 
 GROUPS: list[Group] = [
     Group("Rio de Janeiro", ("GIG", "SDU"), topic_id=4),
-    Group("São Paulo",      ("CGH",), topic_id=6),
+    Group("São Paulo",      ("CGH", "SJK"), topic_id=6),
     Group("São Luís",       ("SLZ",), topic_id=8),
     Group("Sul",            ("FLN", "NVT"), topic_id=10),   # tópico "FLORIANÓPOLIS"
     Group("Foz do Iguaçu",  ("IGU",), (month(2026, 10),), topic_id=2),
-    Group("Patagônia",      ("FTE", "PNT", "PMC", "PUQ", "BRC", "SCL"), (month(2027, 2),), topic_id=12),
+    Group("Patagônia",      ("FTE", "PNT", "PMC", "PUQ", "BRC", "SCL"), (month(2027, 2), month(2027, 3)), topic_id=12),
     # --- Europa ---
     Group("Portugal",       ("LIS", "OPO"), topic_id=14),
     Group("Espanha",        ("MAD", "BCN"), topic_id=16),

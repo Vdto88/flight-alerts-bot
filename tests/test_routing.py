@@ -4,7 +4,8 @@ import routing
 
 def test_build_routes_both_directions_and_count():
     routes = routing.build_routes(config.GROUPS, config.AZUL_HUB)
-    assert len(routes) == 42  # 21 airports x 2 directions
+    expected = 2 * sum(len(g.airports) for g in config.GROUPS)  # both directions per airport
+    assert len(routes) == expected
     pairs = {(r.origin, r.destination) for r in routes}
     assert ("CNF", "GIG") in pairs
     assert ("GIG", "CNF") in pairs
