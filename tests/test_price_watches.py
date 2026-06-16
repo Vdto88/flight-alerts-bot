@@ -28,3 +28,17 @@ def test_slz_is_a_standing_watch():
     assert "SLZ" in by_airport
     assert by_airport["SLZ"].window is None      # standing: no fixed month
     assert by_airport["SLZ"].max_price == 600.0
+
+
+def test_poa_is_a_standing_watch():
+    by_airport = {w.airport: w for w in config.PRICE_WATCHES}
+    assert "POA" in by_airport
+    assert by_airport["POA"].window is None      # standing: rolling window only
+    assert by_airport["POA"].max_price == 400.0
+
+
+def test_igu_is_a_standing_watch():
+    by_airport = {w.airport: w for w in config.PRICE_WATCHES}
+    assert "IGU" in by_airport
+    assert by_airport["IGU"].window is None      # standing: rolling window (+ group's Oct/2026)
+    assert by_airport["IGU"].max_price == 500.0

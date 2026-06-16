@@ -57,6 +57,8 @@ GROUPS: list[Group] = [
 PRICE_WATCHES: list[PriceWatch] = [
     PriceWatch("SJK", month(2026, 9), 400.0),   # São José dos Campos, Sep/2026, <= R$400
     PriceWatch("SLZ", None, 600.0),             # São Luís, standing (rolling window), <= R$600
+    PriceWatch("POA", None, 400.0),             # Porto Alegre, standing (rolling window), <= R$400
+    PriceWatch("IGU", None, 500.0),             # Foz do Iguaçu, standing (rolling + grupo Out/2026), <= R$500
 ]
 
 # Rolling window of departure dates to check, in days from today.
