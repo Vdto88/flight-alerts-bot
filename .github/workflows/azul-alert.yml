@@ -9,10 +9,18 @@ concurrency:
   group: azul-alert
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   run:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -36,3 +44,23 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
         run: python main.py
+
+      - name: Encrypt deals snapshot
+        env:
+          PANEL_PASSWORD: ${{ secrets.PANEL_PASSWORD }}
+        run: python scripts/encrypt_deals.py
+
+      - name: Assemble site
+        run: |
+          mkdir -p _site
+          cp web/index.html web/style.css web/app.js _site/
+          cp deals.enc.json _site/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
