@@ -2,6 +2,7 @@ import logging
 from datetime import date
 
 import cache
+import panel
 import telegram_bot
 import routing
 from airlines.google_flights import GoogleFlightsSearcher
@@ -14,6 +15,7 @@ from config import (
 logger = logging.getLogger(__name__)
 
 _searcher = GoogleFlightsSearcher()
+DEALS_PATH = "deals.json"
 
 
 async def run_azul_cycle() -> None:
@@ -22,6 +24,7 @@ async def run_azul_cycle() -> None:
     total_alerts = 0
     total_price_alerts = 0
     total_errors = 0
+    all_deals: list[dict] = []
 
     for route in routing.build_routes(GROUPS, AZUL_HUB):
         dates = routing.target_dates(
@@ -52,11 +55,17 @@ async def run_azul_cycle() -> None:
                     await cache.save_to_cache(pa.flight, CACHE_TTL_HOURS, kind="price")
                     total_price_alerts += 1
 
+        group = routing.group_of(route.non_hub, GROUPS)
+        region = group.name if group else route.non_hub
+        all_deals.extend(panel.build_deals(flights, region, watches))
+
         logger.info(
             f"AZUL {route.origin}→{route.destination}: {len(flights)} voos, "
             f"{len(azul_alerts)} datas com Azul mais barata"
         )
 
+    panel.write_deals(all_deals, DEALS_PATH)
+    logger.info(f"deals snapshot: {len(all_deals)} registros → {DEALS_PATH}")
     logger.info(
         f"CICLO AZUL CONCLUÍDO — alertas: {total_alerts} | "
         f"alertas de preço: {total_price_alerts} | erros: {total_errors}"
