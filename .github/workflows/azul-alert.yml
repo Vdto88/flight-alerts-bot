@@ -45,22 +45,31 @@ jobs:
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
         run: python main.py
 
+      - name: Check snapshot is non-empty
+        id: snapshot
+        run: |
+          python -c "import json, os; deals = (json.load(open('deals.json')).get('deals', []) if os.path.exists('deals.json') else []); open(os.environ['GITHUB_OUTPUT'], 'a').write('has_deals=' + ('true' if deals else 'false') + '\n')"
+
       - name: Encrypt deals snapshot
+        if: steps.snapshot.outputs.has_deals == 'true'
         env:
           PANEL_PASSWORD: ${{ secrets.PANEL_PASSWORD }}
         run: python scripts/encrypt_deals.py
 
       - name: Assemble site
+        if: steps.snapshot.outputs.has_deals == 'true'
         run: |
           mkdir -p _site
           cp web/index.html web/style.css web/app.js _site/
           cp deals.enc.json _site/
 
       - name: Upload Pages artifact
+        if: steps.snapshot.outputs.has_deals == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: _site
 
       - name: Deploy to GitHub Pages
+        if: steps.snapshot.outputs.has_deals == 'true'
         id: deploy
         uses: actions/deploy-pages@v4

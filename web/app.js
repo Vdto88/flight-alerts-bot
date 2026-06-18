@@ -1,4 +1,5 @@
 const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 let DEALS = [];
 
 async function deriveKey(password, salt, iterations) {
@@ -71,12 +72,12 @@ function render() {
     const stops = d.direto ? "direto" : `${d.paradas} parada(s)`;
     const alert = d.azul_cheapest || d.price_watch != null ? ' class="alert"' : "";
     return `<tr${alert}>
-      <td>${d.origem} → ${d.destino} <span class="muted">· ${d.regiao}</span></td>
-      <td>${d.data}</td>
-      <td>${d.cia} <span class="muted">· ${stops}</span></td>
+      <td>${esc(d.origem)} → ${esc(d.destino)} <span class="muted">· ${esc(d.regiao)}</span></td>
+      <td>${esc(d.data)}</td>
+      <td>${esc(d.cia)} <span class="muted">· ${esc(stops)}</span></td>
       <td>${fmtBRL(d.preco)}</td>
       <td>${badges}</td>
-      <td><a class="buy" href="${d.url_compra}" target="_blank" rel="noopener">comprar</a></td>
+      <td><a class="buy" href="${esc(d.url_compra)}" target="_blank" rel="noopener">comprar</a></td>
     </tr>`;
   }).join("");
   document.getElementById("count").textContent = `${rows.length} de ${DEALS.length} deals`;
@@ -113,11 +114,14 @@ function setup(data) {
 async function unlock() {
   const pw = document.getElementById("password").value;
   const err = document.getElementById("error");
+  const btn = document.getElementById("unlock");
   err.hidden = true;
+  btn.disabled = true;
   try {
     setup(await loadDeals(pw));
   } catch (e) {
     err.hidden = false;
+    btn.disabled = false;
   }
 }
 

@@ -86,7 +86,7 @@ actions/upload-pages-artifact + actions/deploy-pages  → site publicado
   `actions/upload-pages-artifact@v3`; `actions/deploy-pages@v4`.
 - Permissões: `pages: write`, `id-token: write`, `contents: read`; `environment: github-pages`.
 - Secret novo: `PANEL_PASSWORD` (via `gh secret set`).
-- Se a busca falhar e `deals.json` não for gerado, o deploy é pulado (mantém o site anterior).
+- O deploy é pulado se `deals.json` não for gerado **ou** se o snapshot estiver vazio (`deals: []`) — em ambos os casos o site anterior permanece publicado.
 
 ## Modelo de dado (`deals.json`)
 

@@ -11,3 +11,4 @@ scripts/akamai_cookies.json
 scripts/smiles_cache.json
 deals.json
 deals.enc.json
+_site/

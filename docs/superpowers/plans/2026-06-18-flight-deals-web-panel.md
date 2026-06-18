@@ -804,7 +804,7 @@ Ao final da lista de `steps:` (após o step "Run one pass"), adicione:
         uses: actions/deploy-pages@v4
 ```
 
-(Se `main.py` falhar, os steps seguintes não rodam — o site anterior permanece, que é o comportamento desejado.)
+(Se `main.py` falhar, os steps seguintes não rodam — o site anterior permanece. Além disso, um step `Check snapshot is non-empty` verifica se `deals.json` tem pelo menos um deal: se o snapshot estiver vazio, os steps de cifrar/montar/publicar são pulados via `if: steps.snapshot.outputs.has_deals == 'true'` — o site anterior também permanece nesse caso.)
 
 - [ ] **Step 5: Validate the workflow change**
 
