@@ -45,5 +45,14 @@ def test_build_deals_price_watch_flag():
     assert panel.build_deals([_f("GOL", 380.0)], "SP", [])[0]["price_watch"] is None
 
 
+def test_build_deals_azul_only_not_flagged():
+    # When a date has only Azul flights (no competitor), azul_cheapest is False
+    # because alerts.evaluate requires Azul to beat at least one NON-Azul competitor.
+    deals = panel.build_deals([_f("Azul", 300.0)], "SP", [])
+    assert len(deals) == 1
+    assert deals[0]["cia"] == "Azul"
+    assert deals[0]["azul_cheapest"] is False
+
+
 def test_build_deals_empty():
     assert panel.build_deals([], "SP", []) == []

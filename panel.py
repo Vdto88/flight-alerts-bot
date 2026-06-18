@@ -12,6 +12,8 @@ def build_deals(flights: list[Flight], region: str, watches: list[PriceWatch]) -
     for f in valid:
         by_date.setdefault(f.departure_date, []).append(f)
 
+    # azul_cheapest mirrors the "Azul mais barata" alert — True only when Azul beats at least
+    # one NON-Azul competitor on that date. A date with only Azul flights is therefore False.
     azul_dates = {a.flight.departure_date for a in alerts.evaluate(flights)}
     watch_by_date = {
         t.flight.departure_date: t.max_price
