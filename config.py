@@ -59,6 +59,14 @@ PRICE_WATCHES: list[PriceWatch] = [
     PriceWatch("SLZ", None, 600.0),             # São Luís, standing (rolling window), <= R$600
     PriceWatch("POA", None, 400.0),             # Porto Alegre, standing (rolling window), <= R$400
     PriceWatch("IGU", None, 500.0),             # Foz do Iguaçu, standing (rolling + grupo Out/2026), <= R$500
+    # Patagônia (saindo de CNF): standing <= R$1000, qualquer cia.
+    # Cobre as datas já buscadas (rolling + janela do grupo Fev+Mar/2027). Zero query extra.
+    PriceWatch("FTE", None, 1000.0),            # El Calafate
+    PriceWatch("PNT", None, 1000.0),            # Puerto Natales
+    PriceWatch("PMC", None, 1000.0),            # Puerto Montt
+    PriceWatch("PUQ", None, 1000.0),            # Punta Arenas
+    PriceWatch("BRC", None, 1000.0),            # Bariloche
+    PriceWatch("SCL", None, 1000.0),            # Santiago
 ]
 
 # Rolling window of departure dates to check, in days from today.

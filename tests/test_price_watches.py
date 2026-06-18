@@ -42,3 +42,14 @@ def test_igu_is_a_standing_watch():
     assert "IGU" in by_airport
     assert by_airport["IGU"].window is None      # standing: rolling window (+ group's Oct/2026)
     assert by_airport["IGU"].max_price == 500.0
+
+
+def test_patagonia_airports_have_standing_1000_watch():
+    # Patagônia was silent (Azul rarely flies there); standing ≤R$1000 watches
+    # surface any-airline deals on the fetched dates (rolling + group's Feb+Mar/2027).
+    patagonia = {"FTE", "PNT", "PMC", "PUQ", "BRC", "SCL"}
+    by_airport = {w.airport: w for w in config.PRICE_WATCHES}
+    for a in patagonia:
+        assert a in by_airport, f"{a} (Patagônia) sem price-watch"
+        assert by_airport[a].window is None      # standing
+        assert by_airport[a].max_price == 1000.0
