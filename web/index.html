@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Passagens — saindo de CNF</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main>
+    <section id="gate">
+      <h1>Passagens</h1>
+      <p>Digite a senha para ver os deals.</p>
+      <input id="password" type="password" autocomplete="current-password" placeholder="senha" />
+      <button id="unlock">Entrar</button>
+      <p id="error" class="error" hidden>Senha incorreta.</p>
+    </section>
+
+    <section id="app" hidden>
+      <header>
+        <h1>Passagens — saindo de CNF</h1>
+        <span id="updated" class="muted"></span>
+      </header>
+
+      <div id="summary" class="cards"></div>
+
+      <div id="filters">
+        <select id="f-regiao"></select>
+        <select id="f-aeroporto"></select>
+        <select id="f-cia"></select>
+        <select id="f-tipo">
+          <option value="">Tipo: todos</option>
+          <option value="azul">Azul mais barata</option>
+          <option value="watch">Price-watch</option>
+        </select>
+        <select id="f-mes"></select>
+        <label class="check"><input id="f-direto" type="checkbox" /> só diretos</label>
+        <label class="price">Preço máx <input id="f-preco" type="range" min="0" max="10000" step="50" />
+          <span id="f-preco-out"></span></label>
+      </div>
+
+      <table id="table">
+        <thead>
+          <tr>
+            <th data-sort="destino">Rota</th>
+            <th data-sort="data">Data</th>
+            <th data-sort="cia">Cia</th>
+            <th data-sort="preco">Preço</th>
+            <th>Sinal</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <p id="count" class="muted"></p>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
