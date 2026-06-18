@@ -6,6 +6,7 @@ lxml==5.4.0
 fast-flights==2.2
 python-dotenv==1.0.1
 playwright>=1.44
+cryptography
 
 # dev / test
 pytest==8.1.1
