@@ -52,6 +52,18 @@ function render() {
     return (x > y ? 1 : x < y ? -1 : 0) * sortDir;
   });
 
+  const minPreco = rows.length > 0 ? fmtBRL(Math.min(...rows.map((d) => d.preco))) : "—";
+  const rotas = new Set(rows.map((d) => d.origem + "→" + d.destino)).size;
+  const alertas = rows.filter((d) => d.azul_cheapest || d.price_watch != null).length;
+  document.getElementById("summary").innerHTML = [
+    ["Deals", rows.length],
+    ["Mais barato", minPreco],
+    ["Rotas", rotas],
+    ["Alertas", alertas],
+  ].map(([label, value]) =>
+    `<div class="card"><div class="label">${label}</div><div class="value">${value}</div></div>`
+  ).join("");
+
   document.getElementById("rows").innerHTML = rows.map((d) => {
     const badges =
       (d.azul_cheapest ? '<span class="badge azul">Azul</span>' : "") +
