@@ -1,4 +1,5 @@
-from datetime import date
+import json
+from datetime import date, datetime, timezone
 
 import panel
 from airlines.base import Flight
@@ -56,3 +57,21 @@ def test_build_deals_azul_only_not_flagged():
 
 def test_build_deals_empty():
     assert panel.build_deals([], "SP", []) == []
+
+
+def test_write_deals_roundtrip(tmp_path):
+    out = tmp_path / "deals.json"
+    deals = [{"origem": "CNF", "destino": "GIG", "regiao": "Rio de Janeiro", "preco": 289.0}]
+    ts = datetime(2026, 6, 18, 11, 3, 0, tzinfo=timezone.utc)
+    ret = panel.write_deals(deals, str(out), generated_at=ts)
+    assert ret == str(out)
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["gerado_em"] == "2026-06-18T11:03:00Z"
+    assert data["deals"] == deals
+
+
+def test_write_deals_defaults_timestamp(tmp_path):
+    out = tmp_path / "deals.json"
+    panel.write_deals([], str(out))
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["gerado_em"].endswith("Z") and data["deals"] == []

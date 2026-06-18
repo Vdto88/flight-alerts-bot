@@ -1,3 +1,6 @@
+import json
+from datetime import datetime, timezone
+
 import alerts
 from airlines.base import Flight
 from config import PriceWatch
@@ -38,3 +41,11 @@ def build_deals(flights: list[Flight], region: str, watches: list[PriceWatch]) -
             "price_watch": watch_by_date.get(d),
         })
     return deals
+
+
+def write_deals(deals: list[dict], path: str, generated_at: datetime | None = None) -> str:
+    ts = generated_at or datetime.now(timezone.utc)
+    payload = {"gerado_em": ts.strftime("%Y-%m-%dT%H:%M:%SZ"), "deals": deals}
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False)
+    return path
