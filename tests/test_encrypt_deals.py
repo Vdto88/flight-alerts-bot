@@ -1,5 +1,6 @@
 import json
 import pytest
+from cryptography.exceptions import InvalidTag
 
 from scripts.encrypt_deals import encrypt_file, decrypt
 
@@ -26,5 +27,5 @@ def test_decrypt_wrong_password_raises(tmp_path):
     out = tmp_path / "deals.enc.json"
     encrypt_file(str(src), str(out), "certa")
     payload = json.loads(out.read_text(encoding="utf-8"))
-    with pytest.raises(Exception):
+    with pytest.raises(InvalidTag):
         decrypt(payload, "errada")
