@@ -1,6 +1,9 @@
 const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 let DEALS = [];
+let HUB = "CNF";
+const cidadeOf = (d) => (d.origem === HUB ? d.destino : d.origem);
+const sentidoOf = (d) => (d.destino === HUB ? "volta" : "ida");
 
 async function deriveKey(password, salt, iterations) {
   const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
@@ -41,16 +44,20 @@ function render() {
   const aeroporto = document.getElementById("f-aeroporto").value;
   const cia = document.getElementById("f-cia").value;
   const tipo = document.getElementById("f-tipo").value;
-  const mes = document.getElementById("f-mes").value;
+  const sentido = document.getElementById("f-sentido").value;
+  const de = document.getElementById("f-de").value;
+  const ate = document.getElementById("f-ate").value;
   const direto = document.getElementById("f-direto").checked;
   const precoMax = Number(document.getElementById("f-preco").value);
   document.getElementById("f-preco-out").textContent = fmtBRL(precoMax);
 
   let rows = DEALS.filter((d) =>
     (!regiao || d.regiao === regiao) &&
-    (!aeroporto || d.destino === aeroporto) &&
+    (!aeroporto || cidadeOf(d) === aeroporto) &&
+    (!sentido || sentidoOf(d) === sentido) &&
     (!cia || d.cia === cia) &&
-    (!mes || d.data.slice(0, 7) === mes) &&
+    (!de || d.data >= de) &&
+    (!ate || d.data <= ate) &&
     (!direto || d.direto) &&
     (!tipo || (tipo === "azul" ? d.azul_cheapest : d.price_watch != null)) &&
     d.preco <= precoMax
@@ -95,10 +102,17 @@ function setup(data) {
   DEALS = data.deals;
   document.getElementById("updated").textContent =
     "Encontradas em " + fmtFound(data.gerado_em) + " (horário de Brasília)";
+
+  const counts = {};
+  DEALS.forEach((d) => {
+    counts[d.origem] = (counts[d.origem] || 0) + 1;
+    counts[d.destino] = (counts[d.destino] || 0) + 1;
+  });
+  HUB = Object.keys(counts).reduce((a, b) => (counts[b] > counts[a] ? b : a), DEALS.length ? DEALS[0].origem : "CNF");
+
   fillSelect(document.getElementById("f-regiao"), "Região", unique(DEALS.map((d) => d.regiao)));
-  fillSelect(document.getElementById("f-aeroporto"), "Aeroporto", unique(DEALS.map((d) => d.destino)));
+  fillSelect(document.getElementById("f-aeroporto"), "Aeroporto", unique(DEALS.map(cidadeOf)));
   fillSelect(document.getElementById("f-cia"), "Cia", unique(DEALS.map((d) => d.cia)));
-  fillSelect(document.getElementById("f-mes"), "Mês", unique(DEALS.map((d) => d.data.slice(0, 7))));
 
   const maxPrice = Math.max(1000, ...DEALS.map((d) => d.preco));
   const slider = document.getElementById("f-preco");

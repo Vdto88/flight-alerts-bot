@@ -26,6 +26,11 @@
 
       <div id="filters">
         <select id="f-regiao"></select>
+        <select id="f-sentido">
+          <option value="">Sentido: todos</option>
+          <option value="ida">Ida (de CNF)</option>
+          <option value="volta">Volta (pra CNF)</option>
+        </select>
         <select id="f-aeroporto"></select>
         <select id="f-cia"></select>
         <select id="f-tipo">
@@ -33,7 +38,8 @@
           <option value="azul">Azul mais barata</option>
           <option value="watch">Price-watch</option>
         </select>
-        <select id="f-mes"></select>
+        <label class="price">De <input type="date" id="f-de" /></label>
+        <label class="price">Até <input type="date" id="f-ate" /></label>
         <label class="check"><input id="f-direto" type="checkbox" /> só diretos</label>
         <label class="price">Preço máx <input id="f-preco" type="range" min="0" max="10000" step="50" />
           <span id="f-preco-out"></span></label>

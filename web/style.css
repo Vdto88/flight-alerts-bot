@@ -13,7 +13,7 @@ header { display: flex; align-items: baseline; justify-content: space-between; g
 .card .label { color: #9aa1ab; font-size: .8rem; }
 .card .value { font-size: 1.4rem; font-weight: 600; }
 #filters { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: 1rem; }
-#filters select, #filters input[type=range] { font-size: .9rem; padding: .35rem; background: #1a1e24; color: #e6e8eb; border: 1px solid #2a2f37; border-radius: 6px; }
+#filters select, #filters input[type=range], #filters input[type=date] { font-size: .9rem; padding: .35rem; background: #1a1e24; color: #e6e8eb; border: 1px solid #2a2f37; border-radius: 6px; }
 .check, .price { font-size: .85rem; color: #9aa1ab; display: inline-flex; align-items: center; gap: .35rem; }
 table { width: 100%; border-collapse: collapse; font-size: .9rem; background: #15191f; border-radius: 8px; overflow: hidden; }
 th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid #242a32; }
