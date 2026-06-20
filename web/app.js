@@ -20,6 +20,14 @@ async function loadDeals(password) {
 
 function unique(arr) { return [...new Set(arr)].sort(); }
 function fmtBRL(n) { return "R$ " + Math.round(n).toLocaleString("pt-BR"); }
+function fmtDate(iso) { const [y, m, d] = String(iso).split("-"); return `${d}/${m}/${y}`; }
+function fmtFound(iso) {
+  return new Date(iso).toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
 
 function fillSelect(el, label, values) {
   el.innerHTML = `<option value="">${label}: todos</option>` +
@@ -73,7 +81,7 @@ function render() {
     const alert = d.azul_cheapest || d.price_watch != null ? ' class="alert"' : "";
     return `<tr${alert}>
       <td>${esc(d.origem)} → ${esc(d.destino)} <span class="muted">· ${esc(d.regiao)}</span></td>
-      <td>${esc(d.data)}</td>
+      <td>${fmtDate(d.data)}</td>
       <td>${esc(d.cia)} <span class="muted">· ${esc(stops)}</span></td>
       <td>${fmtBRL(d.preco)}</td>
       <td>${badges}</td>
@@ -85,7 +93,8 @@ function render() {
 
 function setup(data) {
   DEALS = data.deals;
-  document.getElementById("updated").textContent = "atualizado: " + data.gerado_em;
+  document.getElementById("updated").textContent =
+    "Encontradas em " + fmtFound(data.gerado_em) + " (horário de Brasília)";
   fillSelect(document.getElementById("f-regiao"), "Região", unique(DEALS.map((d) => d.regiao)));
   fillSelect(document.getElementById("f-aeroporto"), "Aeroporto", unique(DEALS.map((d) => d.destino)));
   fillSelect(document.getElementById("f-cia"), "Cia", unique(DEALS.map((d) => d.cia)));
