@@ -41,6 +41,16 @@ def test_rejects_stay_outside_13_15():
     assert evaluate_round_trip(ida, volta_16, WATCH) == []
 
 
+def test_stay_endpoints_13_and_15_each_fire():
+    ida = [leg("CNF", "CDG", date(2027, 3, 1), 1000.0)]
+    volta_13 = [leg("CDG", "CNF", date(2027, 3, 14), 1000.0)]   # +13 days
+    volta_15 = [leg("CDG", "CNF", date(2027, 3, 16), 1000.0)]   # +15 days
+    out13 = evaluate_round_trip(ida, volta_13, WATCH)
+    out15 = evaluate_round_trip(ida, volta_15, WATCH)
+    assert len(out13) == 1 and out13[0].stay_days == 13
+    assert len(out15) == 1 and out15[0].stay_days == 15
+
+
 def test_picks_stay_that_minimizes_total():
     ida = [leg("CNF", "CDG", date(2027, 3, 1), 1000.0)]
     volta = [leg("CDG", "CNF", date(2027, 3, 14), 1900.0),   # +13, total 2900
@@ -70,7 +80,8 @@ def test_one_alert_per_departure_date():
 def test_ignores_nonpositive_prices_and_out_of_window_ida():
     ida = [leg("CNF", "CDG", date(2027, 3, 1), 0.0),           # price<=0 ignored
            leg("CNF", "CDG", date(2027, 2, 1), 100.0)]          # before depart_window
-    volta = [leg("CDG", "CNF", date(2027, 3, 15), 100.0)]
+    volta = [leg("CDG", "CNF", date(2027, 3, 15), 100.0),       # would pair with Mar 1 ida (ignored, price<=0)
+             leg("CDG", "CNF", date(2027, 2, 15), 100.0)]       # would pair with Feb 1 ida IF window filter were broken
     assert evaluate_round_trip(ida, volta, WATCH) == []
 
 
