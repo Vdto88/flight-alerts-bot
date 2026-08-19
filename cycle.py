@@ -6,16 +6,33 @@ import panel
 import telegram_bot
 import routing
 from airlines.google_flights import GoogleFlightsSearcher
-from alerts import evaluate, evaluate_threshold
+from alerts import evaluate, evaluate_threshold, evaluate_round_trip, round_trip_cache_key
 from config import (
-    AZUL_HUB, GROUPS, PRICE_WATCHES, WINDOW_MIN_DAYS, WINDOW_MAX_DAYS,
-    BATCH_SIZE, CACHE_TTL_HOURS,
+    AZUL_HUB, GROUPS, PRICE_WATCHES, ROUND_TRIP_WATCHES,
+    WINDOW_MIN_DAYS, WINDOW_MAX_DAYS, BATCH_SIZE, CACHE_TTL_HOURS,
 )
 
 logger = logging.getLogger(__name__)
 
 _searcher = GoogleFlightsSearcher()
 DEALS_PATH = "deals.json"
+
+
+async def process_round_trips(rt_ida, rt_volta, watches, all_deals, ttl_hours) -> int:
+    """Evaluate each round-trip watch, send de-duped Telegram alerts, and append the
+    qualifying combos to the panel snapshot. Returns the number of alerts sent."""
+    sent = 0
+    for w in watches:
+        rt_alerts = evaluate_round_trip(rt_ida.get(w.name, []), rt_volta.get(w.name, []), w)
+        for rt in rt_alerts:
+            key = round_trip_cache_key(rt)
+            if await cache.is_key_cached(key):
+                continue
+            if await telegram_bot.send_round_trip_alert(rt, w.topic_id):
+                await cache.save_key(key, ttl_hours)
+                sent += 1
+        all_deals.extend(panel.build_round_trip_deals(rt_alerts, f"{w.name} (ida+volta)"))
+    return sent
 
 
 async def run_azul_cycle() -> None:
@@ -25,10 +42,13 @@ async def run_azul_cycle() -> None:
     total_price_alerts = 0
     total_errors = 0
     all_deals: list[dict] = []
+    rt_ida: dict[str, list] = {w.name: [] for w in ROUND_TRIP_WATCHES}
+    rt_volta: dict[str, list] = {w.name: [] for w in ROUND_TRIP_WATCHES}
 
     for route in routing.build_routes(GROUPS, AZUL_HUB):
         dates = routing.target_dates(
-            route.non_hub, today, GROUPS, WINDOW_MIN_DAYS, WINDOW_MAX_DAYS, PRICE_WATCHES
+            route.non_hub, today, GROUPS, WINDOW_MIN_DAYS, WINDOW_MAX_DAYS,
+            PRICE_WATCHES, ROUND_TRIP_WATCHES,
         )
         try:
             flights = await _searcher.search_dates(
@@ -59,14 +79,26 @@ async def run_azul_cycle() -> None:
         region = group.name if group else route.non_hub
         all_deals.extend(panel.build_deals(flights, region, watches))
 
+        for w in ROUND_TRIP_WATCHES:
+            if route.non_hub in w.airports:
+                if route.origin == AZUL_HUB:
+                    rt_ida[w.name].extend(flights)
+                else:
+                    rt_volta[w.name].extend(flights)
+
         logger.info(
             f"AZUL {route.origin}→{route.destination}: {len(flights)} voos, "
             f"{len(azul_alerts)} datas com Azul mais barata"
         )
 
+    total_rt_alerts = await process_round_trips(
+        rt_ida, rt_volta, ROUND_TRIP_WATCHES, all_deals, CACHE_TTL_HOURS
+    )
+
     panel.write_deals(all_deals, DEALS_PATH)
     logger.info(f"deals snapshot: {len(all_deals)} registros → {DEALS_PATH}")
     logger.info(
         f"CICLO AZUL CONCLUÍDO — alertas: {total_alerts} | "
-        f"alertas de preço: {total_price_alerts} | erros: {total_errors}"
+        f"alertas de preço: {total_price_alerts} | erros: {total_errors} | "
+        f"ida+volta: {total_rt_alerts}"
     )

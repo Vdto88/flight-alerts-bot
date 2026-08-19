@@ -6,7 +6,7 @@ from telegram.constants import ParseMode
 
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHANNEL_ID
 from airlines.base import Flight
-from alerts import AzulComparison
+from alerts import AzulComparison, RoundTripAlert
 
 logger = logging.getLogger(__name__)
 
@@ -199,5 +199,62 @@ async def send_price_alert(flight: Flight, max_price: float,
     logger.info(
         f"Alerta de preço enviado: {flight.origin}→{flight.destination} "
         f"{flight.airline} R${flight.price:.2f} (limite R${max_price:.2f}) {flight.departure_date}"
+    )
+    return True
+
+
+def format_round_trip_alert(rt: RoundTripAlert) -> str:
+    ida_d = rt.ida.departure_date.strftime("%d/%m/%Y")
+    volta_d = rt.volta.departure_date.strftime("%d/%m/%Y")
+    now_str = datetime.now().strftime("%H:%M")
+    return (
+        f"🌍 *IDA+VOLTA {rt.watch_name.upper()} < {_format_brl(rt.max_total)}*\n\n"
+        f"🛫 Ida:   {rt.ida.origin} → {rt.ida.destination} · {ida_d} · "
+        f"{rt.ida.airline} · {_format_brl(rt.ida.price)}\n"
+        f"🛬 Volta: {rt.volta.origin} → {rt.volta.destination} · {volta_d} · "
+        f"{rt.volta.airline} · {_format_brl(rt.volta.price)}\n"
+        f"🧳 Estadia: {rt.stay_days} dias\n"
+        f"💰 Total: {_format_brl(rt.total)}  (teto {_format_brl(rt.max_total)})\n"
+        f"🔗 [Reservar ida]({rt.ida.booking_url}) · [Reservar volta]({rt.volta.booking_url})\n\n"
+        f"⏰ Detectado às {now_str}"
+    )
+
+
+async def send_round_trip_alert(rt: RoundTripAlert, topic_id: int | None = None) -> bool:
+    """Returns True only on a successful send. Posts to `topic_id`; on failure retries
+    once on the General thread."""
+    message = format_round_trip_alert(rt)
+    try:
+        bot = get_bot()
+    except Exception as e:
+        logger.error(f"Falha ao criar bot Telegram: {e}")
+        return False
+
+    async def _send(thread_id: int | None) -> None:
+        await bot.send_message(
+            chat_id=TELEGRAM_CHANNEL_ID,
+            text=message,
+            parse_mode=ParseMode.MARKDOWN,
+            link_preview_options=LinkPreviewOptions(is_disabled=True),
+            message_thread_id=thread_id,
+        )
+
+    try:
+        await _send(topic_id)
+    except Exception as e:
+        if topic_id is None:
+            logger.error(f"Falha ao enviar alerta ida+volta: {e}")
+            return False
+        logger.warning(f"Tópico {topic_id} falhou, tentando Geral: {e}")
+        try:
+            await _send(None)
+        except Exception as e2:
+            logger.error(f"Falha ao enviar alerta ida+volta (Geral): {e2}")
+            return False
+
+    logger.info(
+        f"Alerta ida+volta enviado: {rt.ida.origin}→{rt.ida.destination} + "
+        f"{rt.volta.origin}→{rt.volta.destination} R${rt.total:.2f} "
+        f"({rt.stay_days}d) {rt.ida.departure_date}"
     )
     return True

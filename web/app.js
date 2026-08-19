@@ -54,12 +54,16 @@ function render() {
   let rows = DEALS.filter((d) =>
     (!regiao || d.regiao === regiao) &&
     (!aeroporto || cidadeOf(d) === aeroporto) &&
-    (!sentido || sentidoOf(d) === sentido) &&
+    (!sentido || (d.tipo !== "roundtrip" && sentidoOf(d) === sentido)) &&
     (!cia || d.cia === cia) &&
     (!de || d.data >= de) &&
     (!ate || d.data <= ate) &&
     (!direto || d.direto) &&
-    (!tipo || (tipo === "azul" ? d.azul_cheapest : d.price_watch != null)) &&
+    (!tipo || (
+      tipo === "roundtrip" ? d.tipo === "roundtrip" :
+      tipo === "azul"      ? (d.tipo !== "roundtrip" && d.azul_cheapest) :
+                             (d.tipo !== "roundtrip" && d.price_watch != null)
+    )) &&
     d.preco <= precoMax
   );
 
@@ -70,7 +74,7 @@ function render() {
 
   const minPreco = rows.length > 0 ? fmtBRL(Math.min(...rows.map((d) => d.preco))) : "—";
   const rotas = new Set(rows.map((d) => d.origem + "→" + d.destino)).size;
-  const alertas = rows.filter((d) => d.azul_cheapest || d.price_watch != null).length;
+  const alertas = rows.filter((d) => d.tipo === "roundtrip" || d.azul_cheapest || d.price_watch != null).length;
   document.getElementById("summary").innerHTML = [
     ["Deals", rows.length],
     ["Mais barato", minPreco],
@@ -81,6 +85,19 @@ function render() {
   ).join("");
 
   document.getElementById("rows").innerHTML = rows.map((d) => {
+    if (d.tipo === "roundtrip") {
+      const rota = `${esc(d.ida_origem)}→${esc(d.ida_destino)} + ${esc(d.volta_origem)}→${esc(d.volta_destino)}`;
+      const datas = `${fmtDate(d.data_ida)} → ${fmtDate(d.data_volta)} <span class="muted">(${d.estadia}d)</span>`;
+      return `<tr class="alert">
+        <td>${rota} <span class="muted">· ${esc(d.regiao)}</span></td>
+        <td>${datas}</td>
+        <td>${esc(d.cia_ida)} + ${esc(d.cia_volta)}</td>
+        <td>${fmtBRL(d.preco)}</td>
+        <td><span class="badge watch">ida+volta</span></td>
+        <td><a class="buy" href="${esc(d.url_ida)}" target="_blank" rel="noopener">ida</a> ·
+            <a class="buy" href="${esc(d.url_volta)}" target="_blank" rel="noopener">volta</a></td>
+      </tr>`;
+    }
     const badges =
       (d.azul_cheapest ? '<span class="badge azul">Azul</span>' : "") +
       (d.price_watch != null ? `<span class="badge watch">≤${Math.round(d.price_watch)}</span>` : "") || "—";
