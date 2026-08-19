@@ -56,3 +56,21 @@ async def save_to_cache(flight: Flight, ttl_hours: int = 24, kind: str = "") -> 
             (key, _now_iso(), _expires_iso(ttl_hours)),
         )
         await db.commit()
+
+
+async def is_key_cached(key: str) -> bool:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT 1 FROM seen_flights WHERE cache_key = ? AND expires_at > ?",
+            (key, _now_iso()),
+        ) as cursor:
+            return await cursor.fetchone() is not None
+
+
+async def save_key(key: str, ttl_hours: int = 24) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT OR REPLACE INTO seen_flights (cache_key, detected_at, expires_at) VALUES (?, ?, ?)",
+            (key, _now_iso(), _expires_iso(ttl_hours)),
+        )
+        await db.commit()
