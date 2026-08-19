@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 import alerts
 from airlines.base import Flight
+from alerts import RoundTripAlert
 from config import PriceWatch
 
 
@@ -49,3 +50,40 @@ def write_deals(deals: list[dict], path: str, generated_at: datetime | None = No
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, ensure_ascii=False)
     return path
+
+
+def build_round_trip_deals(rt_alerts: list[RoundTripAlert], region: str) -> list[dict]:
+    """One panel record per round-trip alert. `tipo:"roundtrip"` carries both legs;
+    origem/destino/data/preco/url_compra mirror the ida leg (with preco = total) so the
+    existing filters and sorting keep working."""
+    deals: list[dict] = []
+    for rt in rt_alerts:
+        deals.append({
+            "tipo": "roundtrip",
+            "regiao": region,
+            "origem": rt.ida.origin,
+            "destino": rt.ida.destination,
+            "data": rt.ida.departure_date.isoformat(),
+            "cia": rt.ida.airline,
+            "preco": rt.total,
+            "paradas": rt.ida.stops,
+            "direto": rt.ida.is_direct,
+            "url_compra": rt.ida.booking_url,
+            "azul_cheapest": False,
+            "price_watch": None,
+            "ida_origem": rt.ida.origin,
+            "ida_destino": rt.ida.destination,
+            "data_ida": rt.ida.departure_date.isoformat(),
+            "cia_ida": rt.ida.airline,
+            "preco_ida": rt.ida.price,
+            "url_ida": rt.ida.booking_url,
+            "volta_origem": rt.volta.origin,
+            "volta_destino": rt.volta.destination,
+            "data_volta": rt.volta.departure_date.isoformat(),
+            "cia_volta": rt.volta.airline,
+            "preco_volta": rt.volta.price,
+            "url_volta": rt.volta.booking_url,
+            "estadia": rt.stay_days,
+            "max_total": rt.max_total,
+        })
+    return deals
