@@ -31,3 +31,6 @@ def test_build_round_trip_deal_shape():
     assert deal["preco_ida"] == 1450.0 and deal["preco_volta"] == 1440.0
     assert deal["url_ida"] == "http://ida" and deal["url_volta"] == "http://volta"
     assert deal["estadia"] == 14 and deal["max_total"] == 3000.0
+    assert deal["cia"] == "AZUL"
+    assert deal["paradas"] == 1
+    assert deal["direto"] is False
