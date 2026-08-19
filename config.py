@@ -41,6 +41,17 @@ class PriceWatch:
     max_price: float             # BRL; alert when the cheapest fare (any airline) <= this
 
 
+@dataclass(frozen=True)
+class RoundTripWatch:
+    name: str                    # display/topic label, e.g. "Europa"
+    airports: tuple[str, ...]    # pool: ida-destination and volta-origin
+    depart_window: SearchWindow  # allowed ida departure dates
+    stay_min: int                # min stay in days
+    stay_max: int                # max stay in days (never exceeded)
+    max_total: float             # BRL; alert when ida+volta <= this
+    topic_id: int | None         # Telegram topic; None = General
+
+
 GROUPS: list[Group] = [
     Group("Rio de Janeiro", ("GIG", "SDU"), topic_id=4),
     Group("São Paulo",      ("CGH", "SJK"), topic_id=6),
@@ -67,6 +78,16 @@ PRICE_WATCHES: list[PriceWatch] = [
     PriceWatch("PUQ", None, 1000.0),            # Punta Arenas
     PriceWatch("BRC", None, 1000.0),            # Bariloche
     PriceWatch("SCL", None, 1000.0),            # Santiago
+]
+ROUND_TRIP_WATCHES: list[RoundTripWatch] = [
+    RoundTripWatch(
+        name="Europa",
+        airports=("LIS", "OPO", "MAD", "BCN", "FCO", "MXP", "CDG", "ORY"),
+        depart_window=SearchWindow(date(2027, 2, 1), date(2027, 5, 31)),
+        stay_min=13, stay_max=15,
+        max_total=3000.0,
+        topic_id=None,   # General
+    ),
 ]
 
 # Rolling window of departure dates to check, in days from today.
