@@ -2,6 +2,7 @@ import json
 from datetime import datetime, timezone
 
 import alerts
+import history
 from airlines.base import Flight
 from alerts import RoundTripAlert
 from config import PriceWatch
@@ -87,3 +88,25 @@ def build_round_trip_deals(rt_alerts: list[RoundTripAlert], region: str) -> list
             "max_total": rt.max_total,
         })
     return deals
+
+
+def enrich_with_history(deals: list[dict], stats: dict[str, dict]) -> int:
+    """Attach the price history of each deal's route+date: window low, median, sparkline,
+    and how far today's fare sits from that median. Deals with fewer than two days of
+    observations are left alone — one point says nothing about cheap or expensive.
+    Round-trip records are skipped: their `preco` is a two-leg total, not comparable to
+    the one-way history stored under the same key."""
+    enriched = 0
+    for deal in deals:
+        if deal.get("tipo") == "roundtrip":
+            continue
+        entry = stats.get(history.deal_key(deal))
+        if entry is None or len(entry["spark"]) < 2:
+            continue
+        deal["hist_min"] = entry["min"]
+        deal["hist_med"] = entry["med"]
+        deal["spark"] = entry["spark"]
+        deal["delta_pct"] = round((deal["preco"] - entry["med"]) / entry["med"] * 100)
+        deal["menor_hist"] = deal["preco"] <= entry["min"]
+        enriched += 1
+    return enriched
