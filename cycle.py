@@ -2,6 +2,7 @@ import logging
 from datetime import date
 
 import cache
+import history
 import panel
 import telegram_bot
 import routing
@@ -38,6 +39,8 @@ async def process_round_trips(rt_ida, rt_volta, watches, all_deals, ttl_hours) -
 async def run_azul_cycle() -> None:
     today = date.today()
     await cache.purge_expired()
+    await history.init_db()
+    await history.purge_old()
     total_alerts = 0
     total_price_alerts = 0
     total_errors = 0
@@ -95,7 +98,12 @@ async def run_azul_cycle() -> None:
         rt_ida, rt_volta, ROUND_TRIP_WATCHES, all_deals, CACHE_TTL_HOURS
     )
 
+    # Stats first, then record: today's prices must not skew the baseline they are compared against.
+    enriched = panel.enrich_with_history(all_deals, await history.stats())
+    await history.record(all_deals)
+
     panel.write_deals(all_deals, DEALS_PATH)
+    logger.info(f"histórico: {enriched} de {len(all_deals)} registros com série de preços")
     logger.info(f"deals snapshot: {len(all_deals)} registros → {DEALS_PATH}")
     logger.info(
         f"CICLO AZUL CONCLUÍDO — alertas: {total_alerts} | "
