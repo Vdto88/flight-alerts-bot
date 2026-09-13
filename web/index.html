@@ -4,15 +4,20 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="color-scheme" content="dark" />
-  <meta name="theme-color" content="#0b0e13" />
-  <title>Passagens — CNF</title>
+  <meta name="theme-color" content="#0c0b09" />
+  <title>Terminal CNF — Passagens</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Instrument+Sans:wght@400;500;600&family=Martian+Mono:wght@400;500;600&display=swap" />
   <link rel="stylesheet" href="style.css" />
+  <script src="switch.js"></script>
+  <script>PanelVersion.redirectIfClassic();</script>
 </head>
 <body>
-  <!-- Icon sprite: referenced with <use href="#i-nome">. SVG only, no emoji. -->
+  <!-- Icon sprite, referenced with <use href="#i-nome">. -->
   <svg hidden aria-hidden="true">
     <defs>
-      <g id="i-plane" fill="currentColor" stroke="none"><path d="M10.5 21 12 15l7 4v-2l-5-4V6.5a1.5 1.5 0 0 0-3 0V13l-5 4v2l7-4Z"/></g>
+      <g id="i-plane" fill="currentColor" stroke="none"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5Z"/></g>
       <g id="i-chevron"><path d="m6 9 6 6 6-6"/></g>
       <g id="i-down"><path d="M12 5v14m0 0-6-6m6 6 6-6"/></g>
       <g id="i-up"><path d="M12 19V5m0 0-6 6m6-6 6 6"/></g>
@@ -20,39 +25,68 @@
       <g id="i-grid" fill="currentColor" stroke="none"><path d="M4 5h7v6H4zM13 5h7v6h-7zM4 13h7v6H4zM13 13h7v6h-7z"/></g>
       <g id="i-rows"><path d="M4 6h16M4 12h16M4 18h16"/></g>
       <g id="i-x"><path d="m6 6 12 12M18 6 6 18"/></g>
-      <g id="i-lock"><path d="M7 11V8a5 5 0 0 1 10 0v3M5 11h14v9H5z"/></g>
+      <g id="i-arrow"><path d="M5 12h14m0 0-5-5m5 5-5 5"/></g>
     </defs>
   </svg>
 
+  <div class="atmosphere" aria-hidden="true"></div>
+
   <main>
+    <!-- ============ Gate: a boarding pass you "scan" with the password ============ -->
     <section id="gate" aria-labelledby="gate-title">
-      <div class="gate-card">
-        <svg class="gate-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-lock"/></svg>
-        <h1 id="gate-title">Passagens</h1>
-        <p class="muted">Painel privado de alertas de voo saindo de Belo Horizonte.</p>
-        <form id="gate-form" autocomplete="on">
-          <label class="field">
-            <span>Senha</span>
-            <input id="password" type="password" autocomplete="current-password" required />
-          </label>
-          <button id="unlock" class="btn-primary" type="submit">Entrar</button>
-        </form>
-        <p id="error" class="error" role="alert" hidden>Senha incorreta. Tente de novo.</p>
+      <div class="gate-pass">
+        <div class="gate-main">
+          <p class="kicker">Terminal de ofertas · acesso restrito</p>
+          <h1 id="gate-title"><span>CNF</span><svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-plane"/></svg><span>???</span></h1>
+          <p class="gate-copy">Alertas de passagem saindo de Belo Horizonte, atualizados três vezes por dia.</p>
+          <form id="gate-form" autocomplete="on">
+            <label class="field">
+              <span>Senha</span>
+              <input id="password" type="password" autocomplete="current-password" required />
+            </label>
+            <button id="unlock" class="btn-board" type="submit">Embarcar</button>
+          </form>
+          <p id="error" class="error" role="alert" hidden>Senha incorreta. Confira e tente de novo.</p>
+          <button type="button" class="switch-link" data-switch>Prefere o painel antigo? Abrir versão clássica</button>
+        </div>
+        <div class="gate-stub" aria-hidden="true">
+          <span>Portão</span><b>01</b>
+          <span>Assento</span><b>1A</b>
+          <span class="barcode"></span>
+        </div>
       </div>
     </section>
 
+    <!-- ============ App ============ -->
     <section id="app" hidden>
-      <header class="topbar">
-        <div class="brand">
-          <svg class="brand-icon" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-plane"/></svg>
+      <header class="terminal-head">
+        <div class="sign">
+          <span class="sign-code" id="hub-label">CNF</span>
           <div>
-            <h1>Passagens <span class="hub" id="hub-label">CNF</span></h1>
-            <p id="updated" class="muted"></p>
+            <p class="kicker">Terminal de ofertas</p>
+            <h1>Partidas · <span id="hub-city">Belo Horizonte</span></h1>
           </div>
+        </div>
+        <div class="clock">
+          <span class="clock-time" id="clock" aria-label="Hora em Brasília">--:--:--</span>
+          <span class="kicker">Horário de Brasília</span>
+          <p id="updated" class="updated"></p>
+          <button type="button" class="btn-ghost switch-btn" data-switch>Versão clássica</button>
         </div>
       </header>
 
-      <div id="summary" class="stats"></div>
+      <section class="board" aria-labelledby="board-title">
+        <div class="board-head">
+          <h2 id="board-title">Em destaque agora</h2>
+          <p class="kicker">o melhor sinal de cada destino, dentro dos seus filtros</p>
+        </div>
+        <div class="board-cols" aria-hidden="true">
+          <span>Destino</span><span>Data</span><span>Cia</span><span>Tarifa</span><span>Status</span>
+        </div>
+        <ol id="board" class="board-rows"></ol>
+      </section>
+
+      <div id="summary" class="counters"></div>
 
       <div class="toolbar">
         <div class="filters" id="filters">
@@ -65,7 +99,7 @@
           <select id="f-aeroporto" aria-label="Filtrar por aeroporto"></select>
           <select id="f-cia" aria-label="Filtrar por companhia"></select>
           <select id="f-tipo" aria-label="Filtrar por tipo de sinal">
-            <option value="">Tipo: todos</option>
+            <option value="">Sinal: todos</option>
             <option value="azul">Azul mais barata</option>
             <option value="watch">Price-watch</option>
             <option value="roundtrip">Ida+volta Europa</option>
@@ -78,24 +112,21 @@
             <span>Até <output id="f-preco-out"></output></span>
             <input id="f-preco" type="range" min="0" max="10000" step="50" aria-label="Preço máximo" />
           </label>
-          <button id="clear" class="btn-ghost" type="button">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-x"/></svg> Limpar
-          </button>
         </div>
 
         <div class="view-controls">
-          <label class="field-inline">
-            <span class="sr-only">Ordenar por</span>
-            <select id="f-ordem" aria-label="Ordenar por">
-              <option value="preco">Ordenar: menor preço</option>
-              <option value="delta">Ordenar: maior queda</option>
-              <option value="data">Ordenar: data mais próxima</option>
-              <option value="destino">Ordenar: destino (A-Z)</option>
-            </select>
-          </label>
+          <button id="clear" class="btn-ghost" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-x"/></svg> <span id="clear-label">Limpar</span>
+          </button>
+          <select id="f-ordem" aria-label="Ordenar por">
+            <option value="preco">Ordenar: menor preço</option>
+            <option value="delta">Ordenar: maior queda</option>
+            <option value="data">Ordenar: data mais próxima</option>
+            <option value="destino">Ordenar: destino (A-Z)</option>
+          </select>
           <div class="segmented" role="group" aria-label="Modo de visualização">
             <button type="button" class="seg" data-view="cards" aria-pressed="true">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-grid"/></svg> Cards
+              <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-grid"/></svg> Cartões
             </button>
             <button type="button" class="seg" data-view="tabela" aria-pressed="false">
               <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-rows"/></svg> Tabela
@@ -104,25 +135,28 @@
         </div>
       </div>
 
-      <p id="count" class="muted count" role="status" aria-live="polite"></p>
+      <p id="count" class="count" role="status" aria-live="polite"></p>
 
-      <div id="cards" class="cards-grid"></div>
+      <div id="cards" class="passes"></div>
 
-      <div id="tabela" class="table-wrap" hidden>
-        <table id="table">
-          <thead>
-            <tr>
-              <th data-sort="destino" aria-sort="none"><button type="button">Rota</button></th>
-              <th data-sort="data" aria-sort="none"><button type="button">Data</button></th>
-              <th data-sort="cia" aria-sort="none"><button type="button">Cia</button></th>
-              <th data-sort="preco" aria-sort="ascending"><button type="button">Preço</button></th>
-              <th data-sort="delta_pct" aria-sort="none"><button type="button">vs. média</button></th>
-              <th>Sinal</th>
-              <th><span class="sr-only">Comprar</span></th>
-            </tr>
-          </thead>
-          <tbody id="rows"></tbody>
-        </table>
+      <div id="tabela" hidden>
+        <div class="table-wrap">
+          <table id="table">
+            <thead>
+              <tr>
+                <th data-sort="destino" aria-sort="none"><button type="button">Rota</button></th>
+                <th data-sort="data" aria-sort="none"><button type="button">Data</button></th>
+                <th data-sort="cia" aria-sort="none"><button type="button">Cia</button></th>
+                <th data-sort="preco" aria-sort="ascending"><button type="button">Tarifa</button></th>
+                <th data-sort="delta_pct" aria-sort="none"><button type="button">vs. média</button></th>
+                <th>Sinal</th>
+                <th><span class="sr-only">Comprar</span></th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <button id="more" class="btn-ghost more" type="button" hidden></button>
       </div>
 
       <p id="empty" class="empty" hidden>Nenhum voo bate com esses filtros. Tente afrouxar o preço ou o período.</p>
