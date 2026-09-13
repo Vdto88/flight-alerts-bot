@@ -574,3 +574,10 @@ async function unlock(event) {
 }
 
 $("gate-form").addEventListener("submit", unlock);
+
+document.querySelectorAll("[data-switch]").forEach((b) =>
+  b.addEventListener("click", () => PanelVersion.switchTo("classica", "classic/", $("password").value)));
+
+// Arrived here from the classic panel already unlocked: open straight away.
+const handedOver = PanelVersion.takeHandoff();
+if (handedOver) { $("password").value = handedOver; $("gate-form").requestSubmit(); }

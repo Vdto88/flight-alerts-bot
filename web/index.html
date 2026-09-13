@@ -10,6 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Instrument+Sans:wght@400;500;600&family=Martian+Mono:wght@400;500;600&display=swap" />
   <link rel="stylesheet" href="style.css" />
+  <script src="switch.js"></script>
+  <script>PanelVersion.redirectIfClassic();</script>
 </head>
 <body>
   <!-- Icon sprite, referenced with <use href="#i-nome">. -->
@@ -45,6 +47,7 @@
             <button id="unlock" class="btn-board" type="submit">Embarcar</button>
           </form>
           <p id="error" class="error" role="alert" hidden>Senha incorreta. Confira e tente de novo.</p>
+          <button type="button" class="switch-link" data-switch>Prefere o painel antigo? Abrir versão clássica</button>
         </div>
         <div class="gate-stub" aria-hidden="true">
           <span>Portão</span><b>01</b>
@@ -68,6 +71,7 @@
           <span class="clock-time" id="clock" aria-label="Hora em Brasília">--:--:--</span>
           <span class="kicker">Horário de Brasília</span>
           <p id="updated" class="updated"></p>
+          <button type="button" class="btn-ghost switch-btn" data-switch>Versão clássica</button>
         </div>
       </header>
 

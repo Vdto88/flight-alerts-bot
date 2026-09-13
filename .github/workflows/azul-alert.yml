@@ -60,7 +60,9 @@ jobs:
         if: steps.snapshot.outputs.has_deals == 'true'
         run: |
           mkdir -p _site
-          cp web/index.html web/style.css web/app.js _site/
+          cp web/index.html web/style.css web/app.js web/switch.js _site/
+          mkdir -p _site/classic
+          cp web/classic/index.html web/classic/style.css web/classic/app.js _site/classic/
           cp deals.enc.json _site/
 
       - name: Upload Pages artifact
