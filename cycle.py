@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 _searcher = GoogleFlightsSearcher()
 DEALS_PATH = "deals.json"
+HISTORY_PATH = "history.json"
 
 
 class EmptyCycleError(RuntimeError):
@@ -45,6 +46,10 @@ async def run_azul_cycle() -> None:
     await cache.purge_expired()
     await history.init_db()
     await history.rollup_closed(today)
+    # Read once, before anything is recorded: today's prices must not skew the baseline
+    # they are compared against, and every alert below shares the same picture.
+    stats = await history.stats()
+    route_stats = await history.route_stats()
     total_alerts = 0
     total_price_alerts = 0
     total_errors = 0
@@ -70,7 +75,10 @@ async def run_azul_cycle() -> None:
         azul_alerts = evaluate(flights)
         for alert in azul_alerts:
             if not await cache.is_cached(alert.flight):
-                if await telegram_bot.send_azul_alert(alert.flight, alert.comparison, route.topic_id):
+                ctx = history.context_for(alert.flight, stats, route_stats)
+                if await telegram_bot.send_azul_alert(
+                    alert.flight, alert.comparison, route.topic_id, context=ctx
+                ):
                     await cache.save_to_cache(alert.flight, CACHE_TTL_HOURS)
                     total_alerts += 1
 
@@ -78,7 +86,10 @@ async def run_azul_cycle() -> None:
         watches = [w for w in PRICE_WATCHES if w.airport == route.non_hub]
         for pa in evaluate_threshold(flights, watches):
             if not await cache.is_cached(pa.flight, kind="price"):
-                if await telegram_bot.send_price_alert(pa.flight, pa.max_price, route.topic_id):
+                ctx = history.context_for(pa.flight, stats, route_stats)
+                if await telegram_bot.send_price_alert(
+                    pa.flight, pa.max_price, route.topic_id, context=ctx
+                ):
                     await cache.save_to_cache(pa.flight, CACHE_TTL_HOURS, kind="price")
                     total_price_alerts += 1
 
@@ -113,11 +124,18 @@ async def run_azul_cycle() -> None:
         rt_ida, rt_volta, ROUND_TRIP_WATCHES, all_deals, CACHE_TTL_HOURS
     )
 
-    # Stats first, then record: today's prices must not skew the baseline they are compared against.
-    enriched = panel.enrich_with_history(all_deals, await history.stats())
+    enriched = panel.enrich_with_history(all_deals, stats, route_stats)
     await history.record(all_deals)
 
     panel.write_deals(all_deals, DEALS_PATH)
+    try:
+        # Re-read after recording so the charts end on today's point.
+        panel.write_history(
+            panel.build_history_payload(await history.route_stats(), await history.all_series()),
+            HISTORY_PATH,
+        )
+    except Exception as e:
+        logger.error(f"histórico do painel não gravado: {e}")
     logger.info(f"histórico: {enriched} de {len(all_deals)} registros com série de preços")
     logger.info(f"deals snapshot: {len(all_deals)} registros → {DEALS_PATH}")
     logger.info(
