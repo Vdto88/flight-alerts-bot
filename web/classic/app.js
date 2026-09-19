@@ -2,7 +2,6 @@
    cards com calendário de preços, ou uma tabela para quem prefere varrer tudo. */
 
 const $ = (id) => document.getElementById(id);
-const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 let DEALS = [];
@@ -31,23 +30,9 @@ const fmtFound = (iso) => new Date(iso).toLocaleString("pt-BR", {
   timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
 });
 
-/* ---------------- Decryption ---------------- */
-async function deriveKey(password, salt, iterations) {
-  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
-  return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
-    base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]
-  );
-}
-
-async function loadDeals(password) {
-  // The classic panel lives in /classic/ and reads the same snapshot as the new one.
-  const res = await fetch("../deals.enc.json", { cache: "no-store" });
-  const p = await res.json();
-  const key = await deriveKey(password, b64(p.salt), p.iterations);
-  const clear = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(p.iv) }, key, b64(p.ciphertext));
-  return JSON.parse(new TextDecoder().decode(clear));
-}
+/* ---------------- Decryption (shared, see ../switch.js) ---------------- */
+// The classic panel lives in /classic/ and reads the same snapshot as the new one.
+const loadDeals = (password) => PanelCrypto.load("../deals.enc.json", password);
 
 /* ---------------- Small pieces of markup ---------------- */
 function icon(name, cls = "") {

@@ -3,7 +3,6 @@
    ou uma tabela paginada para varrer tudo. */
 
 const $ = (id) => document.getElementById(id);
-const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const REDUCED_MOTION = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -57,22 +56,9 @@ const fmtFound = (date) => date.toLocaleString("pt-BR", {
   timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
 });
 
-/* ---------------- Decryption ---------------- */
-async function deriveKey(password, salt, iterations) {
-  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
-  return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
-    base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]
-  );
-}
-
-async function loadDeals(password) {
-  const res = await fetch("deals.enc.json", { cache: "no-store" });
-  const p = await res.json();
-  const key = await deriveKey(password, b64(p.salt), p.iterations);
-  const clear = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(p.iv) }, key, b64(p.ciphertext));
-  return JSON.parse(new TextDecoder().decode(clear));
-}
+/* ---------------- Decryption (shared, see switch.js) ---------------- */
+let PASSWORD = "";
+const loadDeals = (password) => PanelCrypto.load("deals.enc.json", password);
 
 /* ---------------- Small pieces of markup ---------------- */
 function icon(name, cls = "") {
@@ -573,7 +559,10 @@ async function unlock(event) {
   btn.disabled = true;
   btn.textContent = "Validando…";
   try {
-    setup(await loadDeals($("password").value));
+    const password = $("password").value;
+    const data = await loadDeals(password);
+    PASSWORD = password;          // kept in memory only, to fetch history.enc.json later
+    setup(data);
   } catch (e) {
     err.hidden = false;
     btn.disabled = false;
