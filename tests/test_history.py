@@ -1,5 +1,7 @@
 from datetime import datetime, time, timedelta, timezone
 
+import aiosqlite
+
 import history
 
 
@@ -90,3 +92,36 @@ async def test_purge_old_deletes_observations_past_the_retention_window():
     await history.purge_old(days=60)
     entry = (await history.stats(days=365))["CNF|SJK|2026-09-10"]
     assert entry["spark"] == [200.0]
+
+
+async def _rows(sql):
+    async with aiosqlite.connect(history.DB_PATH) as db:
+        async with db.execute(sql) as cur:
+            return await cur.fetchall()
+
+
+async def test_three_cycles_on_one_day_collapse_into_one_row_holding_the_minimum():
+    await history.init_db()
+    for hour, price in ((8, 450.0), (14, 380.0), (20, 410.0)):
+        await history.record([_deal(preco=price)], seen_at=_at(2, hour=hour))
+    assert await _rows("SELECT route, price FROM price_daily") == [("CNF|SJK|2026-09-10", 380.0)]
+
+
+async def test_init_db_migrates_the_old_per_cycle_table_once():
+    async with aiosqlite.connect(history.DB_PATH) as db:
+        await db.execute(
+            "CREATE TABLE price_history (id INTEGER PRIMARY KEY, route TEXT NOT NULL, "
+            "price REAL NOT NULL, seen_at TEXT NOT NULL)")
+        await db.executemany(
+            "INSERT INTO price_history (route, price, seen_at) VALUES (?, ?, ?)",
+            [("CNF|SJK|2026-09-10", 450.0, "2026-09-01T08:00:00+00:00"),
+             ("CNF|SJK|2026-09-10", 380.0, "2026-09-01T20:00:00+00:00"),
+             ("CNF|SJK|2026-09-10", 500.0, "2026-09-02T08:00:00+00:00")])
+        await db.commit()
+
+    await history.init_db()
+    await history.init_db()   # second run must be a no-op
+
+    assert await _rows("SELECT dia, price FROM price_daily ORDER BY dia") == [
+        ("2026-09-01", 380.0), ("2026-09-02", 500.0)]
+    assert await _rows("SELECT name FROM sqlite_master WHERE name = 'price_history'") == []
