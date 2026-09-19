@@ -57,6 +57,15 @@ def test_restore_with_a_corrupt_or_foreign_asset_leaves_nothing_behind(tmp_path)
     assert not target.exists()
 
 
+def test_restore_that_cannot_write_the_database_reports_failure(tmp_path):
+    blocker = tmp_path / "data"
+    blocker.write_text("this is a regular file, not a directory")
+    good_asset = json.dumps(encrypt_bytes(b"payload", "segredo")).encode()
+    target = blocker / "cache.db"
+    assert hb.restore(target, "segredo", run=FakeGh(asset=good_asset)) is False
+    assert blocker.read_text() == "this is a regular file, not a directory"
+
+
 def test_backup_creates_the_release_when_the_upload_finds_none(tmp_path):
     db = tmp_path / "cache.db"
     db.write_bytes(b"data")

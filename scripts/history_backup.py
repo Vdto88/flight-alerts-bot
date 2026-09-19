@@ -34,8 +34,12 @@ def restore(db_path: Path, password: str, run=subprocess.run) -> bool:
         except Exception as e:                      # missing release, bad asset, wrong key...
             logger.warning(f"backup do histórico não restaurado, começando vazio: {e!r}")
             return False
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    db_path.write_bytes(data)
+    try:
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        db_path.write_bytes(data)
+    except Exception as e:                          # read-only fs, full disk, parent is a file...
+        logger.warning(f"backup do histórico não restaurado, começando vazio: {e!r}")
+        return False
     logger.info(f"histórico restaurado da release {TAG}: {len(data)} bytes")
     return True
 
@@ -69,5 +73,9 @@ if __name__ == "__main__":
     action = sys.argv[1] if len(sys.argv) > 1 else ""
     if action not in ("restore", "backup"):
         sys.exit("usage: history_backup.py restore|backup")
-    (restore if action == "restore" else backup)(DB_PATH, os.environ["PANEL_PASSWORD"])
+    password = os.environ.get("PANEL_PASSWORD")
+    if not password:
+        logger.warning("PANEL_PASSWORD ausente; backup do histórico ignorado")
+        sys.exit(0)
+    (restore if action == "restore" else backup)(DB_PATH, password)
     sys.exit(0)     # a failed backup or restore must never turn the run red
