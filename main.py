@@ -3,8 +3,10 @@ import logging
 import logging.handlers
 from pathlib import Path
 
+import sys
+
 import cache
-from cycle import run_azul_cycle
+from cycle import EmptyCycleError, run_azul_cycle
 
 
 def setup_logging() -> None:
@@ -29,7 +31,11 @@ async def main() -> None:
     setup_logging()
     log = logging.getLogger(__name__)
     await cache.init_db()
-    await run_azul_cycle()
+    try:
+        await run_azul_cycle()
+    except EmptyCycleError as e:
+        log.error(f"Passe falhou: {e}")
+        sys.exit(1)   # red run on GitHub -> failure e-mail
     log.info("Passe concluído.")
 
 

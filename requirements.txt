@@ -2,16 +2,17 @@ httpx==0.27.0
 python-telegram-bot==21.3.0
 aiosqlite==0.20.0
 beautifulsoup4==4.12.3
-lxml==5.4.0
+lxml==6.1.0
 fast-flights==2.2
 # fast-flights asks primp to impersonate "chrome_126"; primp 2.0.1 turned that into a
 # hard error, so every search failed and cycles came back empty (Sep 13 2026). 2.0.0 only warns.
 primp==2.0.0
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 playwright>=1.44
-cryptography==46.0.7
+cryptography==50.0.0
+tzdata>=2024.1   # zoneinfo data for Windows / slim containers
 
 # dev / test
-pytest==8.1.1
-pytest-asyncio==0.23.6
+pytest==9.0.3
+pytest-asyncio==1.4.0
 pytest-mock==3.14.0

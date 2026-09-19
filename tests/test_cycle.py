@@ -1,5 +1,8 @@
 import json
 from datetime import date
+from unittest.mock import AsyncMock
+
+import pytest
 
 import cache
 import config
@@ -235,3 +238,19 @@ async def test_run_cycle_writes_deals_json(monkeypatch, tmp_path):
     assert gig[0]["regiao"] == "Rio de Janeiro"
     assert gig[0]["azul_cheapest"] is True
     assert gig[0]["price_watch"] is None
+
+
+async def test_run_cycle_empty_raises_and_warns(monkeypatch):
+    """Zero fares on every route = broken source: warn on Telegram and fail the run."""
+    await cache.init_db()
+
+    async def no_flights(self, origin, destination, dates, batch_size=7):
+        return []
+
+    health = AsyncMock(return_value=True)
+    monkeypatch.setattr(GoogleFlightsSearcher, "search_dates", no_flights)
+    monkeypatch.setattr(telegram_bot, "send_health_alert", health)
+
+    with pytest.raises(cycle.EmptyCycleError):
+        await cycle.run_azul_cycle()
+    health.assert_awaited_once()

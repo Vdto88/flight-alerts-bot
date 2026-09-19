@@ -13,3 +13,4 @@ deals.json
 deals.enc.json
 _site/
 scripts/exploration/
+.claude/
