@@ -19,21 +19,24 @@ let boardBooted = false;
 const TABLE_PAGE = 150;
 let tableLimit = TABLE_PAGE;
 
-const CITY = {
-  CNF: "Belo Horizonte", GIG: "Rio · Galeão", SDU: "Rio · Santos Dumont", CGH: "São Paulo · Congonhas",
-  GRU: "São Paulo · Guarulhos", SJK: "São José dos Campos", SLZ: "São Luís", FLN: "Florianópolis",
-  NVT: "Navegantes", POA: "Porto Alegre", IGU: "Foz do Iguaçu", REC: "Recife", SSA: "Salvador",
-  FTE: "El Calafate", PNT: "Puerto Natales", PMC: "Puerto Montt", PUQ: "Punta Arenas",
-  BRC: "Bariloche", SCL: "Santiago", LIS: "Lisboa", OPO: "Porto", MAD: "Madri", BCN: "Barcelona",
-  FCO: "Roma", MXP: "Milão", CDG: "Paris · CDG", ORY: "Paris · Orly",
-};
-const cityOf = (code) => CITY[code] || code;
+// code -> {cidade, uf, pais}; shipped inside the snapshot, straight from config.AIRPORTS.
+let AIRPORTS = {};
+const cityOf = (code) => (AIRPORTS[code] && AIRPORTS[code].cidade) || code;
 
 const isRT = (d) => d.tipo === "roundtrip";
 const cidadeOf = (d) => (d.origem === HUB ? d.destino : d.origem);
 const sentidoOf = (d) => (d.destino === HUB ? "volta" : "ida");
 const hasSignal = (d) => isRT(d) || d.azul_cheapest || d.price_watch != null;
 // Round trips are keyed by their itinerary so an open card survives re-filtering.
+// "Florianópolis · SC" / "Lisboa · Portugal". Snapshots older than the airport table
+// only know the Telegram group name, so fall back to it.
+const placeOf = (d) => (d.cidade ? `${d.cidade} · ${d.uf || d.pais}` : d.regiao);
+// Region filter values: "pais:Chile" or "uf:SC".
+const inRegion = (d, v) => {
+  if (!v) return true;
+  const [kind, name] = [v.slice(0, v.indexOf(":")), v.slice(v.indexOf(":") + 1)];
+  return kind === "uf" ? d.uf === name : d.pais === name;
+};
 const groupKey = (d) => (isRT(d)
   ? `rt:${d.ida_destino}|${d.data_ida}|${d.volta_origem}|${d.data_volta}`
   : `${cidadeOf(d)}|${sentidoOf(d)}`);
@@ -129,7 +132,7 @@ function filtered() {
   $("clear").classList.toggle("is-active", active > 0);
 
   return DEALS.filter((d) =>
-    (!f.regiao || d.regiao === f.regiao) &&
+    inRegion(d, f.regiao) &&
     (!f.aeroporto || cidadeOf(d) === f.aeroporto) &&
     (!f.sentido || (!isRT(d) && sentidoOf(d) === f.sentido)) &&
     (!f.cia || d.cia === f.cia) &&
@@ -367,7 +370,7 @@ function passHTML(g, i) {
           ${iata(to, toLabel)}
         </span>
         <span class="pass-meta">${meta.map(([k, v]) => `<span><i>${k}</i><em class="num">${esc(v)}</em></span>`).join("")}</span>
-        <span class="badges">${badges(d) || `<span class="badge reg">${esc(d.regiao)}</span>`}</span>
+        <span class="badges">${badges(d) || `<span class="badge reg">${esc(placeOf(d))}</span>`}</span>
       </span>
       <span class="pass-stub">
         <span><span class="fare-label">Tarifa${g.rt ? " total" : ""}</span>
@@ -376,7 +379,7 @@ function passHTML(g, i) {
       </span>
     </button>
     <div class="pass-foot">
-      ${spark(d) || `<span class="kicker">${esc(d.regiao)}</span>`}
+      ${spark(d) || `<span class="kicker">${esc(placeOf(d))}</span>`}
       <span class="pass-toggle">${open ? "Fechar" : g.rt ? "Ver trechos" : "Ver calendário"} ${icon("chevron", "chevron")}</span>
     </div>
     ${open ? `<div class="pass-body">${g.rt ? roundTripBody(d) : calendar(g) + datesTable(g)}</div>` : ""}
@@ -399,7 +402,7 @@ function tableRowHTML(d) {
     : `<a class="buy" href="${esc(d.url_compra)}" target="_blank" rel="noopener">comprar</a>`;
 
   return `<tr class="${hasSignal(d) ? "is-alert" : ""}">
-    ${cell("Rota", `${rota} <span class="muted">· ${esc(d.regiao)}</span>`)}
+    ${cell("Rota", `${rota} <span class="muted">· ${esc(placeOf(d))}</span>`)}
     ${cell("Data", `<span class="num">${data}</span>`)}
     ${cell("Cia", `${cia}${isRT(d) ? "" : ` <span class="muted">· ${d.direto ? "direto" : d.paradas + " parada(s)"}</span>`}`)}
     ${cell("Tarifa", `<span class="num">${fmtBRL(d.preco)}</span>`)}
@@ -493,6 +496,7 @@ function fillSelect(el, label, values, fmt = (v) => v) {
 
 function setup(data) {
   DEALS = data.deals;
+  AIRPORTS = data.aeroportos || {};
   GENERATED_AT = new Date(data.gerado_em);
 
   // The hub is whichever airport shows up in the most legs.
@@ -505,7 +509,12 @@ function setup(data) {
   $("hub-label").textContent = HUB;
   $("hub-city").textContent = cityOf(HUB);
 
-  fillSelect($("f-regiao"), "Região", unique(DEALS.map((d) => d.regiao)));
+  // Countries first, then the Brazilian states; city level is the airport filter below.
+  const paises = unique(DEALS.map((d) => d.pais).filter(Boolean));
+  const ufs = unique(DEALS.map((d) => d.uf).filter(Boolean));
+  $("f-regiao").innerHTML = `<option value="">Região: todas</option>` +
+    `<optgroup label="País">${paises.map((p) => `<option value="pais:${esc(p)}">${esc(p)}</option>`).join("")}</optgroup>` +
+    (ufs.length ? `<optgroup label="Brasil · estado">${ufs.map((u) => `<option value="uf:${esc(u)}">${esc(u)}</option>`).join("")}</optgroup>` : "");
   fillSelect($("f-aeroporto"), "Aeroporto", unique(DEALS.map(cidadeOf)), (c) => `${c} · ${cityOf(c)}`);
   fillSelect($("f-cia"), "Cia", unique(DEALS.map((d) => d.cia)));
 

@@ -5,7 +5,16 @@ import alerts
 import history
 from airlines.base import Flight
 from alerts import RoundTripAlert
-from config import PriceWatch
+from config import AIRPORTS, AZUL_HUB, PriceWatch
+
+
+def place_fields(airport: str) -> dict:
+    """City / state / country of an airport, for the panel. An airport missing from
+    config.AIRPORTS degrades to its own code instead of breaking the snapshot."""
+    a = AIRPORTS.get(airport)
+    if a is None:
+        return {"cidade": airport, "uf": None, "pais": ""}
+    return {"cidade": a.cidade, "uf": a.uf, "pais": a.pais}
 
 
 def build_deals(flights: list[Flight], region: str, watches: list[PriceWatch]) -> list[dict]:
@@ -41,13 +50,20 @@ def build_deals(flights: list[Flight], region: str, watches: list[PriceWatch]) -
             "url_compra": cheapest.booking_url,
             "azul_cheapest": d in azul_dates,
             "price_watch": watch_by_date.get(d),
+            **place_fields(
+                cheapest.destination if cheapest.origin == AZUL_HUB else cheapest.origin
+            ),
         })
     return deals
 
 
 def write_deals(deals: list[dict], path: str, generated_at: datetime | None = None) -> str:
     ts = generated_at or datetime.now(timezone.utc)
-    payload = {"gerado_em": ts.strftime("%Y-%m-%dT%H:%M:%SZ"), "deals": deals}
+    payload = {
+        "gerado_em": ts.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "aeroportos": {code: place_fields(code) for code in AIRPORTS},
+        "deals": deals,
+    }
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(payload, fh, ensure_ascii=False)
     return path
@@ -86,6 +102,7 @@ def build_round_trip_deals(rt_alerts: list[RoundTripAlert], region: str) -> list
             "url_volta": rt.volta.booking_url,
             "estadia": rt.stay_days,
             "max_total": rt.max_total,
+            **place_fields(rt.ida.destination),
         })
     return deals
 
