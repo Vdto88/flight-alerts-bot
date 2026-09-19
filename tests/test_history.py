@@ -85,15 +85,6 @@ async def test_record_returns_the_number_of_rows_written():
     assert await history.record([_deal(), _deal(destino="POA"), _deal(preco=0.0)]) == 2
 
 
-async def test_purge_old_deletes_observations_past_the_retention_window():
-    await history.init_db()
-    await history.record([_deal(preco=100.0)], seen_at=_at(90))
-    await history.record([_deal(preco=200.0)], seen_at=_at(10))
-    await history.purge_old(days=60)
-    entry = (await history.stats(days=365))["CNF|SJK|2026-09-10"]
-    assert entry["spark"] == [200.0]
-
-
 async def _rows(sql):
     async with aiosqlite.connect(history.DB_PATH) as db:
         async with db.execute(sql) as cur:

@@ -44,7 +44,7 @@ async def run_azul_cycle() -> None:
     today = date.today()
     await cache.purge_expired()
     await history.init_db()
-    await history.purge_old()
+    await history.rollup_closed(today)
     total_alerts = 0
     total_price_alerts = 0
     total_errors = 0

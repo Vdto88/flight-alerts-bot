@@ -6,7 +6,7 @@ ever lost the history simply starts filling up again; nothing else depends on it
 """
 import logging
 import statistics
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import aiosqlite
@@ -36,6 +36,17 @@ async def init_db() -> None:
                 dia    TEXT NOT NULL,
                 price  REAL NOT NULL,
                 PRIMARY KEY (route, dia)
+            ) WITHOUT ROWID
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS closed_dates (
+                origem      TEXT NOT NULL,
+                destino     TEXT NOT NULL,
+                data_voo    TEXT NOT NULL,
+                lead_bucket INTEGER NOT NULL,
+                min_price   REAL NOT NULL,
+                n_obs       INTEGER NOT NULL,
+                PRIMARY KEY (origem, destino, data_voo, lead_bucket)
             ) WITHOUT ROWID
         """)
         # One-off migration from the per-cycle table used until Sep 2026.
@@ -76,10 +87,42 @@ async def record(deals: list[dict], seen_at: datetime | None = None) -> int:
     return len(rows)
 
 
-async def purge_old(days: int = 60) -> None:
+# Days between the observation and the flight. Anything beyond 180 joins the last bucket.
+LEAD_BUCKETS = [(0, 7), (8, 14), (15, 30), (31, 60), (61, 90), (91, 120), (121, 180)]
+
+
+def lead_bucket(days: int) -> int:
+    for i, (_lo, hi) in enumerate(LEAD_BUCKETS):
+        if days <= hi:
+            return i
+    return len(LEAD_BUCKETS) - 1
+
+
+async def rollup_closed(today: date | None = None) -> int:
+    """Summarise every flight that already left into closed_dates and drop its daily
+    detail. Returns how many route+date keys were closed."""
+    cutoff = (today or datetime.now(timezone.utc).date()).isoformat()
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("DELETE FROM price_daily WHERE dia < ?", (_cutoff_iso(days)[:10],))
+        async with db.execute(
+            "SELECT route, dia, price FROM price_daily WHERE substr(route, -10) < ?", (cutoff,)
+        ) as cur:
+            rows = await cur.fetchall()
+        if not rows:
+            return 0
+
+        summary: dict[tuple, list[float]] = {}
+        for route, dia, price in rows:
+            origem, destino, data_voo = route.split("|")
+            lead = (date.fromisoformat(data_voo) - date.fromisoformat(dia)).days
+            summary.setdefault((origem, destino, data_voo, lead_bucket(max(lead, 0))), []).append(price)
+
+        await db.executemany(
+            "INSERT OR REPLACE INTO closed_dates VALUES (?, ?, ?, ?, ?, ?)",
+            [(*key, min(prices), len(prices)) for key, prices in summary.items()],
+        )
+        await db.execute("DELETE FROM price_daily WHERE substr(route, -10) < ?", (cutoff,))
         await db.commit()
+    return len({key[:3] for key in summary})
 
 
 async def stats(days: int = STATS_DAYS) -> dict[str, dict]:
