@@ -1,7 +1,7 @@
 import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import date, timedelta
+from datetime import date
 from typing import List, Optional
 import asyncio
 import logging
@@ -45,24 +45,6 @@ class FlightSearcher(ABC):
     @abstractmethod
     async def search(self, origin: str, destination: str, departure_date: date) -> List[Flight]:
         """Search flights for a single departure date. Returns [] on any error."""
-
-    async def search_range(self, origin: str, destination: str, days_ahead: int = 60, batch_size: int = 7) -> List[Flight]:
-        """Search the next `days_ahead` days in batches of `batch_size` dates."""
-        today = date.today()
-        dates = [today + timedelta(days=i) for i in range(1, days_ahead + 1)]
-        all_flights: List[Flight] = []
-
-        for batch_start in range(0, len(dates), batch_size):
-            batch = dates[batch_start:batch_start + batch_size]
-            tasks = [self.search(origin, destination, d) for d in batch]
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            for result in results:
-                if isinstance(result, list):
-                    all_flights.extend(result)
-                else:
-                    logger.warning(f"{self.AIRLINE_NAME} batch error: {result}")
-
-        return all_flights
 
     async def search_dates(
         self, origin: str, destination: str, dates: List[date], batch_size: int = 7

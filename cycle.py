@@ -19,6 +19,10 @@ _searcher = GoogleFlightsSearcher()
 DEALS_PATH = "deals.json"
 
 
+class EmptyCycleError(RuntimeError):
+    """Every search came back empty — the source is broken, not the market."""
+
+
 async def process_round_trips(rt_ida, rt_volta, watches, all_deals, ttl_hours) -> int:
     """Evaluate each round-trip watch, send de-duped Telegram alerts, and append the
     qualifying combos to the panel snapshot. Returns the number of alerts sent."""
@@ -93,6 +97,17 @@ async def run_azul_cycle() -> None:
             f"AZUL {route.origin}→{route.destination}: {len(flights)} voos, "
             f"{len(azul_alerts)} datas com Azul mais barata"
         )
+
+    # A healthy pass finds thousands of fares. Zero means the scraper is broken (blocked,
+    # dependency drift, ...): searches swallow their own errors, so without this the run
+    # would finish green and the outage would go unnoticed.
+    if not all_deals:
+        logger.error("CICLO VAZIO — nenhuma tarifa encontrada em nenhuma rota")
+        await telegram_bot.send_health_alert(
+            "Nenhuma tarifa encontrada em nenhuma rota neste ciclo. "
+            "A busca no Google Flights provavelmente quebrou — veja o log do Actions."
+        )
+        raise EmptyCycleError("no fares found on any route")
 
     total_rt_alerts = await process_round_trips(
         rt_ida, rt_volta, ROUND_TRIP_WATCHES, all_deals, CACHE_TTL_HOURS
