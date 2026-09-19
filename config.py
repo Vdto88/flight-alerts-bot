@@ -65,6 +65,45 @@ GROUPS: list[Group] = [
     Group("Itália",         ("FCO", "MXP"), topic_id=18),
     Group("França",         ("CDG", "ORY"), topic_id=20),
 ]
+
+
+@dataclass(frozen=True)
+class Airport:
+    cidade: str
+    uf: str | None    # Brazilian state; None abroad
+    pais: str
+
+
+# Where each airport is, for the panel. Groups above only pick the Telegram topic, so
+# airports sharing a topic (FLN + POA under "Sul") still show up as separate places.
+# tests/test_airports.py fails when a searched airport is missing here.
+AIRPORTS: dict[str, Airport] = {
+    "CNF": Airport("Belo Horizonte", "MG", "Brasil"),
+    "GIG": Airport("Rio de Janeiro", "RJ", "Brasil"),
+    "SDU": Airport("Rio de Janeiro", "RJ", "Brasil"),
+    "CGH": Airport("São Paulo", "SP", "Brasil"),
+    "SJK": Airport("São José dos Campos", "SP", "Brasil"),
+    "SLZ": Airport("São Luís", "MA", "Brasil"),
+    "FLN": Airport("Florianópolis", "SC", "Brasil"),
+    "NVT": Airport("Navegantes", "SC", "Brasil"),
+    "POA": Airport("Porto Alegre", "RS", "Brasil"),
+    "IGU": Airport("Foz do Iguaçu", "PR", "Brasil"),
+    "FTE": Airport("El Calafate", None, "Argentina"),
+    "BRC": Airport("Bariloche", None, "Argentina"),
+    "PNT": Airport("Puerto Natales", None, "Chile"),
+    "PMC": Airport("Puerto Montt", None, "Chile"),
+    "PUQ": Airport("Punta Arenas", None, "Chile"),
+    "SCL": Airport("Santiago", None, "Chile"),
+    "LIS": Airport("Lisboa", None, "Portugal"),
+    "OPO": Airport("Porto", None, "Portugal"),
+    "MAD": Airport("Madri", None, "Espanha"),
+    "BCN": Airport("Barcelona", None, "Espanha"),
+    "FCO": Airport("Roma", None, "Itália"),
+    "MXP": Airport("Milão", None, "Itália"),
+    "CDG": Airport("Paris", None, "França"),
+    "ORY": Airport("Paris", None, "França"),
+}
+
 PRICE_WATCHES: list[PriceWatch] = [
     PriceWatch("SJK", month(2026, 9), 400.0),   # São José dos Campos, Sep/2026, <= R$400
     PriceWatch("SLZ", None, 600.0),             # São Luís, standing (rolling window), <= R$600
