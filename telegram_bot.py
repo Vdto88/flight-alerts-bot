@@ -8,6 +8,7 @@ from telegram.constants import ParseMode
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHANNEL_ID
 from airlines.base import Flight
 from alerts import AzulComparison, RoundTripAlert
+from history import HistoryContext
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +52,28 @@ def _stops_label(flight: Flight) -> str:
     return f"{flight.stops} parada" + ("s" if flight.stops > 1 else "")
 
 
-def format_azul_alert(flight: Flight, comparison: AzulComparison) -> str:
+FLAT_PCT = 3    # same noise threshold the panel uses
+
+
+def format_context_line(ctx: HistoryContext | None) -> str:
+    """One line placing the fare against its own history; empty when there is none."""
+    if ctx is None:
+        return ""
+    base = "da média da rota" if ctx.scope == "rota" else f"da média de {ctx.window_days} dias"
+    if abs(ctx.delta_pct) <= FLAT_PCT:
+        line = "➖ na média da rota" if ctx.scope == "rota" else f"➖ na média de {ctx.window_days} dias"
+    elif ctx.delta_pct < 0:
+        line = f"📉 {abs(ctx.delta_pct)}% abaixo {base}"
+    else:
+        line = f"📈 {ctx.delta_pct}% acima {base}"
+    if ctx.is_lowest and ctx.since:
+        _y, m, d = ctx.since.split("-")
+        line += f" · menor preço desde {d}/{m}"
+    return line + "\n"
+
+
+def format_azul_alert(flight: Flight, comparison: AzulComparison,
+                      context: HistoryContext | None = None) -> str:
     dep_date = flight.departure_date.strftime("%d/%m/%Y")
     now_str = _now_hhmm()
     return (
@@ -60,6 +82,7 @@ def format_azul_alert(flight: Flight, comparison: AzulComparison) -> str:
         f"💰 {_format_brl(flight.price)}  (Azul)\n"
         f"📊 vs {_format_brl(comparison.competitor_price)} ({comparison.competitor}) "
         f"— economia de {_format_brl(comparison.savings)}\n"
+        f"{format_context_line(context)}"
         f"📅 {dep_date} • {flight.departure_time} → {flight.arrival_time}\n"
         f"🏢 Azul • {_stops_label(flight)}\n"
         f"🔗 [Reservar agora]({flight.booking_url})\n\n"
@@ -68,12 +91,13 @@ def format_azul_alert(flight: Flight, comparison: AzulComparison) -> str:
 
 
 async def send_azul_alert(flight: Flight, comparison: AzulComparison,
-                          topic_id: int | None = None) -> bool:
+                          topic_id: int | None = None,
+                          context: HistoryContext | None = None) -> bool:
     """Returns True if the alert was sent, False otherwise (so the caller only
     marks it as seen on success — a failed send must be retried next cycle).
     Posts to the forum topic `topic_id` when given; if that send fails (topic
     deleted, chat isn't a forum, ...) it retries once on the General thread."""
-    message = format_azul_alert(flight, comparison)
+    message = format_azul_alert(flight, comparison, context)
     try:
         bot = get_bot()
     except Exception as e:
@@ -110,7 +134,8 @@ async def send_azul_alert(flight: Flight, comparison: AzulComparison,
     return True
 
 
-def format_price_alert(flight: Flight, max_price: float) -> str:
+def format_price_alert(flight: Flight, max_price: float,
+                       context: HistoryContext | None = None) -> str:
     dep_date = flight.departure_date.strftime("%d/%m/%Y")
     now_str = _now_hhmm()
     return (
@@ -118,6 +143,7 @@ def format_price_alert(flight: Flight, max_price: float) -> str:
         f"🛫 {flight.origin} → {flight.destination}\n"
         f"💰 {_format_brl(flight.price)}\n"
         f"🎯 abaixo do seu limite de {_format_brl(max_price)}\n"
+        f"{format_context_line(context)}"
         f"📅 {dep_date} • {flight.departure_time} → {flight.arrival_time}\n"
         f"🏢 {flight.airline} • {_stops_label(flight)}\n"
         f"🔗 [Reservar agora]({flight.booking_url})\n\n"
@@ -126,10 +152,11 @@ def format_price_alert(flight: Flight, max_price: float) -> str:
 
 
 async def send_price_alert(flight: Flight, max_price: float,
-                           topic_id: int | None = None) -> bool:
+                           topic_id: int | None = None,
+                           context: HistoryContext | None = None) -> bool:
     """Returns True only on a successful send. Posts to the forum topic `topic_id`;
     if that fails it retries once on the General thread."""
-    message = format_price_alert(flight, max_price)
+    message = format_price_alert(flight, max_price, context)
     try:
         bot = get_bot()
     except Exception as e:
