@@ -103,7 +103,8 @@ computed in Python, so nothing un-mergeable is stored.
   `med` (median of per-date minimums), `min`, `n_dates`, `by_month` (flight month → median),
   `by_dow` (flight weekday → median), `lead_curve` (bucket → median of `min_price`, plus the
   number of closed dates behind it).
-- `series(route_key)` — full daily series for one route+date, up to 180 points.
+- `all_series(max_points=90)` — daily series of every live route+date, oldest first; this is
+  what `history.json` ships.
 
 One sqlite connection per call is kept (existing pattern); `record` uses `executemany`.
 
@@ -194,7 +195,7 @@ A fixed release tagged `history-db` holds one asset, `cache.db.gz.enc`.
 - `history`: daily-min upsert across three same-day cycles; migration from `price_history`
   (idempotent); `rollup_closed` bucket assignment at the boundaries (7/8, 180/181) and detail
   deletion; `stats` window, `since`, `n`; `route_stats` medians, month/weekday grouping,
-  lead curve merging live and closed data.
+  per-date lows merging live and closed data; lead curve built from closed dates only.
 - `history_backup`: gzip+encrypt round trip; restore with `gh` mocked (success, missing
   release, corrupt asset); backup never called on empty cycle.
 - `encrypt_deals`: v2 payload decrypts and gunzips; v1 payload still decrypts.
