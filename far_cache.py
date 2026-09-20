@@ -62,7 +62,16 @@ def load_carried(existing_deals: list[dict], today: date, near_max_days: int,
         logger.warning(f"datas distantes ignoradas: vistas há {age}, limite {MAX_AGE_HOURS} h")
         return []
 
-    have = {_key(d) for d in existing_deals if d.get("tipo") != "roundtrip"}
+    # A round-trip record mirrors its ida leg's origem|destino|data, so it would mask the
+    # one-way record for the same far date. Only a searched one-way counts as "already
+    # covered". Malformed records are skipped rather than raised on: this module never raises.
+    have = set()
+    for d in existing_deals:
+        try:
+            if d.get("tipo") != "roundtrip":
+                have.add(_key(d))
+        except (KeyError, TypeError, AttributeError):
+            continue
     carried = []
     for d in deals:
         try:

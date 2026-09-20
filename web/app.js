@@ -23,6 +23,9 @@ let AIRPORTS = {};
 // Window behind every "vs. média" number, shipped by the snapshot (history.STATS_DAYS).
 // The fallback is only for a cached snapshot written before the field existed.
 let HIST_DAYS = 60;
+// Near band (config.WINDOW_MAX_DAYS): beyond it, dates are searched once a day and carried.
+// The fallback is only for a cached snapshot written before the field existed.
+let NEAR_DAYS = 120;
 const cityOf = (code) => (AIRPORTS[code] && AIRPORTS[code].cidade) || code;
 
 const isRT = (d) => d.tipo === "roundtrip";
@@ -448,6 +451,8 @@ function routeSection(d, h) {
 function historyBlock(g) {
   if (g.rt) return "";
   const d = g.best;
+  // Fetching while rendering is safe: ensureRouteHistory sets the Map key synchronously,
+  // before the request goes out, so the re-render it triggers cannot fetch again or loop.
   ensureRouteHistory(d.origem, d.destino);          // idempotent; re-renders when it lands
   const h = ROUTE_HISTORY.get(routeFile(d.origem, d.destino));
   if (h === null || h === undefined) return `<p class="hist-note">Carregando histórico…</p>`;
@@ -457,7 +462,7 @@ function historyBlock(g) {
 
 const carriedNote = (g) => {
   const stamp = g.deals.map((d) => d.visto_em).filter(Boolean).sort()[0];
-  return stamp ? `<p class="hist-note">Datas a mais de 120 dias são atualizadas uma vez por dia · ${ageOf(stamp)}.</p>` : "";
+  return stamp ? `<p class="hist-note">Datas a mais de ${NEAR_DAYS} dias são atualizadas uma vez por dia · ${ageOf(stamp)}.</p>` : "";
 };
 
 function passHTML(g, i) {
@@ -611,6 +616,7 @@ function setup(data) {
   DEALS = data.deals;
   AIRPORTS = data.aeroportos || {};
   HIST_DAYS = data.hist_janela_dias || HIST_DAYS;
+  NEAR_DAYS = data.janela_perto_dias || NEAR_DAYS;
   GENERATED_AT = new Date(data.gerado_em);
 
   // The hub is whichever airport shows up in the most legs.
@@ -697,7 +703,7 @@ async function unlock(event) {
   try {
     const password = $("password").value;
     const data = await loadDeals(password);
-    PASSWORD = password;          // kept in memory only, to fetch history.enc.json later
+    PASSWORD = password;          // kept in memory only, to fetch history/<ROTA>.enc.json later
     setup(data);
   } catch (e) {
     err.textContent = UNLOCK_MESSAGES[e && e.code] || UNLOCK_FALLBACK;
