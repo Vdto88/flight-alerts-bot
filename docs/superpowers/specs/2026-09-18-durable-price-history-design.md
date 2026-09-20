@@ -77,6 +77,7 @@ CREATE TABLE closed_dates (
     data_voo    TEXT NOT NULL,     -- departure date
     lead_bucket INTEGER NOT NULL,  -- index into LEAD_BUCKETS
     min_price   REAL NOT NULL,     -- lowest daily price seen inside that bucket
+    med_price   REAL NOT NULL,     -- median of the daily prices inside that bucket
     n_obs       INTEGER NOT NULL,  -- days observed inside that bucket
     PRIMARY KEY (origem, destino, data_voo, lead_bucket)
 ) WITHOUT ROWID;
@@ -91,7 +92,10 @@ detail rows. One transaction. Growth: at most 7 rows per route per departure dat
 120k rows a year at 46 routes. Never purged.
 
 Month and weekday of the flight are derived from `data_voo` at query time; medians are
-computed in Python, so nothing un-mergeable is stored.
+computed in Python, so nothing un-mergeable is stored. `min_price` and `med_price` are both
+kept because they answer different questions: the floor ever seen, and what that date cost on
+a typical day. A closed date whose only summary were the floor would drag every route median
+down as live dates depart.
 
 ### 1.3 Queries
 
@@ -99,12 +103,20 @@ computed in Python, so nothing un-mergeable is stored.
   (the day the current minimum was first seen), `n` (days observed). Same shape as today plus
   `since` and `n`; window grows from 30 to 60 days. Still excludes today, because the cycle
   reads stats before recording.
-- `route_stats()` — per `ORIG|DEST`, merging live `price_daily` and `closed_dates`:
-  `med` (median of per-date minimums), `min`, `n_dates`, `by_month` (flight month → median),
-  `by_dow` (flight weekday → median), `lead_curve` (bucket → median of `min_price`, plus the
-  number of closed dates behind it).
-- `all_series(max_points=90)` — daily series of every live route+date, oldest first; this is
-  what `history.json` ships.
+- `route_stats()` — per `ORIG|DEST`, merging live `price_daily` and `closed_dates`. Each
+  flight date gets two numbers: its **floor** (lowest price ever seen) and its **typical
+  price** (median of its daily prices while live, median of its buckets' `med_price` once
+  closed; a date that is both keeps the live value). `min` is the lowest floor — the "piso já
+  visto" the panel claims. Everything else reads the typical prices: `med` (their median),
+  `by_month` (flight month → median), `by_dow` (flight weekday → median), `lead_curve`
+  (bucket → median of `med_price`, plus the number of closed dates behind it). `n_dates` is
+  the number of flight dates, `n_closed` how many of them have departed. A median of floors
+  would compare every live fare against a floor-of-floors and read expensive.
+- `all_series(max_points=90)` — daily series of every live route+date, oldest first, filtered
+  in SQL to the last `max_points` days; this is what `history.json` ships.
+- Rows whose `route` is not `ORIG|DEST|YYYY-MM-DD` are skipped with one logged warning per
+  call (and dropped by `rollup_closed`): the database is durable, so a single bad key must
+  not raise out of every future cycle.
 
 One sqlite connection per call is kept (existing pattern); `record` uses `executemany`.
 

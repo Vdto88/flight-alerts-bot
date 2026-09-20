@@ -80,6 +80,12 @@ async def test_record_skips_deals_without_a_usable_price():
     assert await history.stats() == {}
 
 
+async def test_record_skips_round_trips_because_their_price_is_a_two_leg_total():
+    await history.init_db()
+    assert await history.record([dict(_deal(preco=2900.0), tipo="roundtrip")]) == 0
+    assert await history.stats() == {}
+
+
 async def test_record_returns_the_number_of_rows_written():
     await history.init_db()
     assert await history.record([_deal(), _deal(destino="POA"), _deal(preco=0.0)]) == 2
@@ -96,6 +102,20 @@ async def test_three_cycles_on_one_day_collapse_into_one_row_holding_the_minimum
     for hour, price in ((8, 450.0), (14, 380.0), (20, 410.0)):
         await history.record([_deal(preco=price)], seen_at=_at(2, hour=hour))
     assert await _rows("SELECT route, price FROM price_daily") == [("CNF|SJK|2026-09-10", 380.0)]
+
+
+async def test_init_db_adds_med_price_to_an_older_closed_dates_table():
+    async with aiosqlite.connect(history.DB_PATH) as db:
+        await db.execute(
+            "CREATE TABLE closed_dates (origem TEXT NOT NULL, destino TEXT NOT NULL, "
+            "data_voo TEXT NOT NULL, lead_bucket INTEGER NOT NULL, min_price REAL NOT NULL, "
+            "n_obs INTEGER NOT NULL, PRIMARY KEY (origem, destino, data_voo, lead_bucket))")
+        await db.execute("INSERT INTO closed_dates VALUES ('CNF', 'SJK', '2026-08-01', 0, 420.0, 3)")
+        await db.commit()
+
+    await history.init_db()
+
+    assert await _rows("SELECT min_price, med_price FROM closed_dates") == [(420.0, 420.0)]
 
 
 async def test_init_db_migrates_the_old_per_cycle_table_once():

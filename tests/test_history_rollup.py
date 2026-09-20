@@ -36,10 +36,10 @@ async def test_rollup_summarises_a_departed_flight_per_bucket_and_drops_its_deta
     closed = await history.rollup_closed(today=date(2026, 9, 11))
 
     assert closed == 1
-    assert await _all("SELECT origem, destino, data_voo, lead_bucket, min_price, n_obs "
+    assert await _all("SELECT origem, destino, data_voo, lead_bucket, min_price, med_price, n_obs "
                       "FROM closed_dates ORDER BY lead_bucket") == [
-        ("CNF", "GIG", "2026-09-10", 0, 280.0, 2),
-        ("CNF", "GIG", "2026-09-10", 2, 410.0, 1),
+        ("CNF", "GIG", "2026-09-10", 0, 280.0, 290.0, 2),
+        ("CNF", "GIG", "2026-09-10", 2, 410.0, 410.0, 1),
     ]
     assert await _all("SELECT * FROM price_daily") == []
 
@@ -49,6 +49,19 @@ async def test_rollup_leaves_flights_departing_today_or_later_alone():
                  ("CNF|GIG|2026-12-01", "2026-09-01", 500.0)])
     assert await history.rollup_closed(today=date(2026, 9, 11)) == 0
     assert len(await _all("SELECT * FROM price_daily")) == 2
+
+
+async def test_rollup_skips_and_drops_malformed_keys_instead_of_raising():
+    await _seed([
+        ("CNF|GIG|2026-09-10", "2026-09-08", 300.0),   # good
+        ("CNF|GIG|X|2026-09-10", "2026-09-08", 999.0),  # four parts
+        ("CNF|GIG|0000-13-45", "2026-09-08", 888.0),    # third part is not a date
+    ])
+    assert await history.rollup_closed(today=date(2026, 9, 11)) == 1
+    assert await _all("SELECT origem, destino, data_voo, min_price FROM closed_dates") == [
+        ("CNF", "GIG", "2026-09-10", 300.0),
+    ]
+    assert await _all("SELECT * FROM price_daily") == []     # the poison does not linger
 
 
 async def test_rollup_is_safe_to_run_twice():
