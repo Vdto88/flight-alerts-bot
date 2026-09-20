@@ -20,6 +20,9 @@ let tableLimit = TABLE_PAGE;
 
 // code -> {cidade, uf, pais}; shipped inside the snapshot, straight from config.AIRPORTS.
 let AIRPORTS = {};
+// Window behind every "vs. média" number, shipped by the snapshot (history.STATS_DAYS).
+// The fallback is only for a cached snapshot written before the field existed.
+let HIST_DAYS = 60;
 const cityOf = (code) => (AIRPORTS[code] && AIRPORTS[code].cidade) || code;
 
 const isRT = (d) => d.tipo === "roundtrip";
@@ -67,7 +70,11 @@ function ensureHistory() {
   if (!historyPromise) {
     historyPromise = PanelCrypto.load("history.enc.json", PASSWORD)
       .then((h) => { HISTORY = h; })
-      .catch(() => { HISTORY = false; })
+      .catch((e) => {
+        // The panel only shows "Histórico indisponível"; this is the one diagnostic there is.
+        console.warn(`histórico não carregado (${(e && e.code) || "erro"}):`, e);
+        HISTORY = false;
+      })
       .then(render);
   }
   return historyPromise;
@@ -83,18 +90,18 @@ function badges(d) {
   if (isRT(d)) out.push('<span class="badge rt">ida + volta</span>');
   if (d.azul_cheapest) out.push('<span class="badge azul">Azul mais barata</span>');
   if (d.price_watch != null) out.push(`<span class="badge watch">alvo ≤ ${fmtBRL(d.price_watch)}</span>`);
-  if (d.menor_hist) out.push(`<span class="badge low">${icon("star")} menor em 30d</span>`);
+  if (d.menor_hist) out.push(`<span class="badge low">${icon("star")} menor em ${HIST_DAYS}d</span>`);
   return out.join("");
 }
 
-/* Gap between this fare and its own 30-day median. Under ±3% it is noise. */
+/* Gap between this fare and its own median over the snapshot's window. Under ±3% it is noise. */
 function delta(d) {
   if (d.delta_pct == null) return "";
   const p = d.delta_pct;
   if (Math.abs(p) < 3) return `<span class="delta flat">na média</span>`;
   const dir = p < 0 ? "down" : "up";
   const word = p < 0 ? "abaixo" : "acima";
-  return `<span class="delta ${dir}" title="${Math.abs(p)}% ${word} da média de 30 dias">${icon(dir)}${Math.abs(p)}% ${word}</span>`;
+  return `<span class="delta ${dir}" title="${Math.abs(p)}% ${word} da média de ${HIST_DAYS} dias">${icon(dir)}${Math.abs(p)}% ${word}</span>`;
 }
 
 /* Same ±3% dead band as delta(), but against what the route typically costs: inside
@@ -208,7 +215,7 @@ function statusOf(d) {
   if (d.price_watch != null) return ["s-deal", `Alvo ≤ ${fmtInt(d.price_watch)}`];
   if (isRT(d)) return ["s-rt", `Ida+volta ${d.estadia}d`];
   if (d.delta_pct != null && d.delta_pct <= -3) return ["s-good", `▼ ${Math.abs(d.delta_pct)}% abaixo`];
-  if (d.menor_hist) return ["s-good", "Menor 30 dias"];
+  if (d.menor_hist) return ["s-good", `Menor ${HIST_DAYS} dias`];
   if (d.azul_cheapest) return ["s-azul", "Azul + barata"];
   return ["s-flat", "Na média"];
 }
@@ -588,6 +595,7 @@ function fillSelect(el, label, values, fmt = (v) => v) {
 function setup(data) {
   DEALS = data.deals;
   AIRPORTS = data.aeroportos || {};
+  HIST_DAYS = data.hist_janela_dias || HIST_DAYS;
   GENERATED_AT = new Date(data.gerado_em);
 
   // The hub is whichever airport shows up in the most legs.
@@ -658,6 +666,14 @@ function setup(data) {
   setTimeout(() => $("cards").classList.remove("booting"), 1200);
 }
 
+/* Only an OperationError from the decrypt is actually a wrong password (see switch.js);
+   telling a stale deploy or an old browser apart from one saves a lot of retyping. */
+const UNLOCK_MESSAGES = {
+  password: "Senha incorreta. Confira e tente de novo.",
+  unsupported: "Seu navegador é antigo demais para abrir o painel. Atualize o navegador e tente de novo.",
+};
+const UNLOCK_FALLBACK = "Não consegui carregar os dados agora. Tente de novo em alguns minutos.";
+
 async function unlock(event) {
   event.preventDefault();
   const btn = $("unlock"), err = $("error");
@@ -670,6 +686,7 @@ async function unlock(event) {
     PASSWORD = password;          // kept in memory only, to fetch history.enc.json later
     setup(data);
   } catch (e) {
+    err.textContent = UNLOCK_MESSAGES[e && e.code] || UNLOCK_FALLBACK;
     err.hidden = false;
     btn.disabled = false;
     btn.textContent = "Embarcar";

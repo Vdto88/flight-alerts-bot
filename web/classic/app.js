@@ -9,6 +9,9 @@ let HUB = "CNF";
 let VIEW = "cards";
 let OPEN = new Set();
 let sortKey = "preco", sortDir = 1;
+// Window behind every "vs. média" number, shipped by the snapshot (history.STATS_DAYS).
+// The fallback is only for a cached snapshot written before the field existed.
+let HIST_DAYS = 60;
 
 const isRT = (d) => d.tipo === "roundtrip";
 const cidadeOf = (d) => (d.origem === HUB ? d.destino : d.origem);
@@ -44,19 +47,19 @@ function badges(d) {
   if (isRT(d)) out.push('<span class="badge rt">ida + volta</span>');
   if (d.azul_cheapest) out.push('<span class="badge azul">Azul mais barata</span>');
   if (d.price_watch != null) out.push(`<span class="badge watch">alvo ≤ ${fmtBRL(d.price_watch)}</span>`);
-  if (d.menor_hist) out.push(`<span class="badge low">${icon("star")} menor em 30d</span>`);
+  if (d.menor_hist) out.push(`<span class="badge low">${icon("star")} menor em ${HIST_DAYS}d</span>`);
   return out.join("");
 }
 
-/* Percentage gap between this fare and its own 30-day median. Below ±3% the
-   noise outweighs the signal, so it reads as "na média" instead of a number. */
+/* Percentage gap between this fare and its own median over the snapshot's window. Below
+   ±3% the noise outweighs the signal, so it reads as "na média" instead of a number. */
 function delta(d) {
   if (d.delta_pct == null) return "";
   const p = d.delta_pct;
-  if (Math.abs(p) < 3) return `<span class="delta flat">na média de 30d</span>`;
+  if (Math.abs(p) < 3) return `<span class="delta flat">na média de ${HIST_DAYS}d</span>`;
   const dir = p < 0 ? "down" : "up";
   const word = p < 0 ? "abaixo" : "acima";
-  return `<span class="delta ${dir}" title="${Math.abs(p)}% ${word} da média de 30 dias">
+  return `<span class="delta ${dir}" title="${Math.abs(p)}% ${word} da média de ${HIST_DAYS} dias">
     ${icon(dir)} ${Math.abs(p)}% ${word}</span>`;
 }
 
@@ -305,6 +308,7 @@ function fillSelect(el, label, values) {
 
 function setup(data) {
   DEALS = data.deals;
+  HIST_DAYS = data.hist_janela_dias || HIST_DAYS;
   $("updated").textContent = "Atualizado em " + fmtFound(data.gerado_em) + " (Brasília)";
 
   // The hub is whichever airport shows up in the most legs — CNF today, but the
@@ -362,6 +366,14 @@ function setup(data) {
   setView("cards");
 }
 
+/* Only an OperationError from the decrypt is actually a wrong password (see ../switch.js);
+   telling a stale deploy or an old browser apart from one saves a lot of retyping. */
+const UNLOCK_MESSAGES = {
+  password: "Senha incorreta. Confira e tente de novo.",
+  unsupported: "Seu navegador é antigo demais para abrir o painel. Atualize o navegador e tente de novo.",
+};
+const UNLOCK_FALLBACK = "Não consegui carregar os dados agora. Tente de novo em alguns minutos.";
+
 async function unlock(event) {
   event.preventDefault();
   const btn = $("unlock"), err = $("error");
@@ -371,6 +383,7 @@ async function unlock(event) {
   try {
     setup(await loadDeals($("password").value));
   } catch (e) {
+    err.textContent = UNLOCK_MESSAGES[e && e.code] || UNLOCK_FALLBACK;
     err.hidden = false;
     btn.disabled = false;
     btn.textContent = "Entrar";
