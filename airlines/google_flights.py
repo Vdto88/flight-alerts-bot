@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 
 _BOOKING_BASE = "https://www.google.com/travel/flights"
 _CURRENCY = "BRL"
+# Google lists some fares (self-transfer itineraries) with no carrier name.
+NO_AIRLINE_LABEL = "Cia não informada"
 
 
 def _parse_time(raw: str) -> str:
@@ -105,7 +107,7 @@ class GoogleFlightsSearcher(FlightSearcher):
                 flights.append(Flight(
                     origin=origin,
                     destination=destination,
-                    airline=ff.name or "GOOGLE_FALLBACK",
+                    airline=ff.name or NO_AIRLINE_LABEL,
                     departure_date=departure_date,
                     departure_time=dep_time,
                     arrival_time=arr_time,
