@@ -59,25 +59,32 @@ const fmtFound = (date) => date.toLocaleString("pt-BR", {
   timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
 });
 
+/* Far-band dates are searched once a day; records carried from that cycle say when. */
+function ageOf(iso) {
+  const min = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  return min < 60 ? `visto há ${min} min` : `visto há ${Math.round(min / 60)} h`;
+}
+
 /* ---------------- Decryption (shared, see switch.js) ---------------- */
 let PASSWORD = "";
 const loadDeals = (password) => PanelCrypto.load("deals.enc.json", password);
 
-/* History is only needed once a pass is opened: fetch it once, share the promise. */
-let HISTORY = null;          // resolved payload, or false when it could not be loaded
-let historyPromise = null;
-function ensureHistory() {
-  if (!historyPromise) {
-    historyPromise = PanelCrypto.load("history.enc.json", PASSWORD)
-      .then((h) => { HISTORY = h; })
-      .catch((e) => {
-        // The panel only shows "Histórico indisponível"; this is the one diagnostic there is.
-        console.warn(`histórico não carregado (${(e && e.code) || "erro"}):`, e);
-        HISTORY = false;
-      })
-      .then(render);
-  }
-  return historyPromise;
+/* History is one encrypted file per route, fetched the first time a pass of that route is
+   drawn open. Map value: undefined = not requested, null = loading, false = failed, object = loaded. */
+const ROUTE_HISTORY = new Map();
+const routeFile = (origem, destino) => `${origem}-${destino}`;
+
+function ensureRouteHistory(origem, destino) {
+  const key = routeFile(origem, destino);
+  if (ROUTE_HISTORY.has(key)) return;
+  ROUTE_HISTORY.set(key, null);
+  PanelCrypto.load(`history/${key}.enc.json`, PASSWORD)
+    .then((h) => ROUTE_HISTORY.set(key, h))
+    .catch((e) => {
+      console.warn(`histórico de ${key} indisponível (${e && e.code ? e.code : "erro"})`);
+      ROUTE_HISTORY.set(key, false);
+    })
+    .then(scheduleRender);
 }
 
 /* ---------------- Small pieces of markup ---------------- */
@@ -325,7 +332,7 @@ function calendar(g) {
       const t = tier(d.preco);
       const best = d === g.best ? " best" : "";
       cells.push(`<a class="day t${t}${best}" href="${esc(d.url_compra)}" target="_blank" rel="noopener"
-        title="${fmtDate(iso)} · ${fmtBRL(d.preco)} · ${TIER_WORD[t]}${best ? " · melhor preço" : ""} · ${esc(d.cia)}">
+        title="${fmtDate(iso)} · ${fmtBRL(d.preco)} · ${TIER_WORD[t]}${best ? " · melhor preço" : ""} · ${esc(d.cia)}${d.visto_em ? " · " + ageOf(d.visto_em) : ""}">
         <span class="d">${day}</span><span class="p">${Math.round(d.preco / 10) * 10}</span></a>`);
     }
     return `<div class="month"><h3>${fmtMonth(ym)}</h3>
@@ -372,8 +379,8 @@ const MIN_CLOSED_DATES = 20, MIN_LEAD_BUCKETS = 4;
 const MIN_ROUTE_DATES = 5;   // mirrors history.MIN_ROUTE_DATES: below it a route median means nothing
 
 /* Daily series of one flight date: line, median rule, floor rule, today's point. */
-function dateChart(d) {
-  const points = HISTORY.series[`${d.origem}|${d.destino}|${d.data}`];
+function dateChart(d, hist) {
+  const points = hist.series[`${d.origem}|${d.destino}|${d.data}`];
   if (!points || points.length < 2) return `<p class="hist-note">Ainda sem série suficiente para esta data.</p>`;
   const prices = points.map(([, p]) => p);
   const w = 560, h = 160, padL = 46, padR = 12, padT = 12, padB = 22;
@@ -415,8 +422,8 @@ function barRows(entries, fmtKey) {
 }
 
 /* What the route usually costs, and (once enough flights have departed) when to buy. */
-function routeSection(d) {
-  const r = HISTORY.rotas[`${d.origem}|${d.destino}`];
+function routeSection(d, h) {
+  const r = h.rota;
   // Too few flight dates for a median to mean anything — and the stub above already
   // says "sem histórico", so a confident route summary here would contradict it.
   if (!r || r.n_dates < MIN_ROUTE_DATES) return "";
@@ -440,10 +447,18 @@ function routeSection(d) {
 
 function historyBlock(g) {
   if (g.rt) return "";
-  if (HISTORY === null) return `<p class="hist-note">Carregando histórico…</p>`;
-  if (HISTORY === false) return `<p class="hist-note">Histórico indisponível agora. Calendário e tabela seguem funcionando.</p>`;
-  return dateChart(g.best) + routeSection(g.best);
+  const d = g.best;
+  ensureRouteHistory(d.origem, d.destino);          // idempotent; re-renders when it lands
+  const h = ROUTE_HISTORY.get(routeFile(d.origem, d.destino));
+  if (h === null || h === undefined) return `<p class="hist-note">Carregando histórico…</p>`;
+  if (h === false) return `<p class="hist-note">Histórico indisponível agora para esta rota. Calendário e tabela seguem funcionando.</p>`;
+  return dateChart(d, h) + routeSection(d, h);
 }
+
+const carriedNote = (g) => {
+  const stamp = g.deals.map((d) => d.visto_em).filter(Boolean).sort()[0];
+  return stamp ? `<p class="hist-note">Datas a mais de 120 dias são atualizadas uma vez por dia · ${ageOf(stamp)}.</p>` : "";
+};
 
 function passHTML(g, i) {
   const d = g.best;
@@ -479,7 +494,7 @@ function passHTML(g, i) {
       ${spark(d) || `<span class="kicker">${esc(placeOf(d))}</span>`}
       <span class="pass-toggle">${open ? "Fechar" : g.rt ? "Ver trechos" : "Ver calendário"} ${icon("chevron", "chevron")}</span>
     </div>
-    ${open ? `<div class="pass-body">${g.rt ? roundTripBody(d) : historyBlock(g) + calendar(g) + datesTable(g)}</div>` : ""}
+    ${open ? `<div class="pass-body">${g.rt ? roundTripBody(d) : historyBlock(g) + carriedNote(g) + calendar(g) + datesTable(g)}</div>` : ""}
   </article>`;
 }
 
@@ -500,7 +515,7 @@ function tableRowHTML(d) {
 
   return `<tr class="${hasSignal(d) ? "is-alert" : ""}">
     ${cell("Rota", `${rota} <span class="muted">· ${esc(placeOf(d))}</span>`)}
-    ${cell("Data", `<span class="num">${data}</span>`)}
+    ${cell("Data", `<span class="num"${d.visto_em ? ` title="${ageOf(d.visto_em)}"` : ""}>${data}</span>`)}
     ${cell("Cia", `${cia}${isRT(d) ? "" : ` <span class="muted">· ${d.direto ? "direto" : d.paradas + " parada(s)"}</span>`}`)}
     ${cell("Tarifa", `<span class="num">${fmtBRL(d.preco)}</span>`)}
     ${cell("vs. média", delta(d) || '<span class="muted">sem histórico</span>')}
@@ -641,7 +656,6 @@ function setup(data) {
     if (!head) return;
     const key = head.closest(".pass").querySelector(".pass-top").dataset.key;
     OPEN.has(key) ? OPEN.delete(key) : OPEN.add(key);
-    if (OPEN.size) ensureHistory();
     render();
   });
 
