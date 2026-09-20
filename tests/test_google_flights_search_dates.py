@@ -71,8 +71,43 @@ async def test_a_date_that_always_fails_is_counted_once_with_one_warning(monkeyp
     assert seen[DAYS[2].isoformat()] == google_flights.MAX_RETRIES + 1
     assert len(flights) == len(DAYS) - 1
     assert (s.queries, s.failures) == (len(DAYS), 1)
+    # One WARNING for the route, and it names the reason: the Actions log runs at INFO, so a
+    # bare count would say an outage happened without saying anything actionable about it.
     warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
-    assert len(warnings) == 1 and "1 data(s) falharam" in warnings[0].getMessage()
+    assert len(warnings) == 1
+    message = warnings[0].getMessage()
+    assert f"1 de {len(DAYS)} datas falharam de vez" in message
+    assert "os error 101" in message
+
+
+async def test_the_route_warning_quotes_one_reason_and_never_a_whole_page(monkeypatch, caplog):
+    def outcome(day, nth):
+        raise OSError("Network is unreachable (os error 101) " + "x" * 500)
+
+    _fetch(monkeypatch, outcome)
+    s = GoogleFlightsSearcher()
+    with caplog.at_level(logging.WARNING):
+        await s.search_dates("CNF", "GIG", DAYS, batch_size=7)
+
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1                      # one per route, not one per date
+    message = warnings[0].getMessage()
+    assert "Network is unreachable (os error 101)" in message
+    assert len(message) < 260                      # the reason is truncated, not the page
+
+
+async def test_search_names_the_reason_in_its_single_warning(monkeypatch, caplog):
+    def outcome(day, nth):
+        raise OSError("Network is unreachable (os error 101)")
+
+    _fetch(monkeypatch, outcome)
+    s = GoogleFlightsSearcher()
+    with caplog.at_level(logging.WARNING):
+        assert await s.search("CNF", "GIG", DAYS[0]) == []
+
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    assert "os error 101" in warnings[0].getMessage()
 
 
 async def test_no_flights_found_is_never_retried(monkeypatch, no_real_sleep):

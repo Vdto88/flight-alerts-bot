@@ -3,7 +3,7 @@ import logging
 import re
 from datetime import date
 from functools import partial
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from fast_flights import FlightData, Passengers
 # get_flights() does not expose the currency; call the engine directly so we can
@@ -23,6 +23,7 @@ NO_AIRLINE_LABEL = "Cia não informada"
 MAX_RETRIES = 2          # extra attempts after the first
 RETRY_BACKOFF_S = 1.0    # sleep is RETRY_BACKOFF_S * attempt: 1 s, then 2 s
 _NO_FLIGHTS = "No flights found"
+_REASON_CHARS = 160      # a failure reason quoted in a log line, never the whole page
 
 
 def _parse_time(raw: str) -> str:
@@ -85,9 +86,10 @@ class GoogleFlightsSearcher(FlightSearcher):
         self.no_flights = 0
 
     async def _search_once(self, origin: str, destination: str,
-                           departure_date: date) -> Optional[List[Flight]]:
+                           departure_date: date) -> Union[List[Flight], str]:
         """One fetch + parse, with no sleeping and no counting of queries/failures.
-        `None` means a transient failure worth retrying; `[]` is a valid empty answer."""
+        A list is the answer (`[]` is a valid empty one); a str is a transient failure worth
+        retrying, and carries the reason, so the caller's single WARNING can name it."""
         date_str = departure_date.strftime("%Y-%m-%d")
         tfs = TFSData.from_interface(
             flight_data=[FlightData(date=date_str, from_airport=origin, to_airport=destination)],
@@ -109,9 +111,10 @@ class GoogleFlightsSearcher(FlightSearcher):
                 self.no_flights += 1
                 logger.debug(f"Google Flights/{origin}→{destination} {departure_date}: sem voos")
                 return []
+            reason = str(e)[:_REASON_CHARS]
             logger.debug(f"Google Flights/{origin}→{destination} {departure_date}: "
-                         f"tentativa falhou: {str(e)[:160]}")
-            return None
+                         f"tentativa falhou: {reason}")
+            return reason
         return self._parse(result, origin, destination, departure_date)
 
     async def search(self, origin: str, destination: str, departure_date: date) -> List[Flight]:
@@ -119,14 +122,14 @@ class GoogleFlightsSearcher(FlightSearcher):
         of the route instead; this path stays for one-off lookups."""
         self.queries += 1
         for attempt in range(MAX_RETRIES + 1):
-            flights = await self._search_once(origin, destination, departure_date)
-            if flights is not None:
-                return flights
+            outcome = await self._search_once(origin, destination, departure_date)
+            if isinstance(outcome, list):
+                return outcome
             if attempt == MAX_RETRIES:
                 self.failures += 1
                 logger.warning(
                     f"Google Flights/{origin}→{destination} {departure_date}: "
-                    f"falhou após {MAX_RETRIES + 1} tentativas (motivo no log DEBUG)"
+                    f"falhou após {MAX_RETRIES + 1} tentativas: {outcome}"
                 )
                 return []
             await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
@@ -142,6 +145,10 @@ class GoogleFlightsSearcher(FlightSearcher):
         all_flights: List[Flight] = []
         self.queries += len(dates)
         pending = list(dates)
+        # Why each pending date failed, last attempt wins. The WARNING below quotes one of
+        # them: at INFO — the level the Actions log runs at — a bare count says an outage
+        # happened but not what it was, and the per-date reasons only exist at DEBUG.
+        reasons: dict[date, str] = {}
         for attempt in range(MAX_RETRIES + 1):
             if not pending:
                 break
@@ -159,16 +166,19 @@ class GoogleFlightsSearcher(FlightSearcher):
                         all_flights.extend(result)
                         continue
                     if isinstance(result, BaseException):
+                        reasons[d] = str(result)[:_REASON_CHARS]
                         logger.debug(f"Google Flights/{origin}→{destination} {d}: "
-                                     f"tentativa falhou: {str(result)[:160]}")
+                                     f"tentativa falhou: {reasons[d]}")
+                    else:
+                        reasons[d] = result
                     failed.append(d)
             pending = failed
 
         if pending:
             self.failures += len(pending)
             logger.warning(
-                f"Google Flights/{origin}→{destination}: {len(pending)} data(s) falharam "
-                f"após {MAX_RETRIES + 1} tentativas"
+                f"Google Flights/{origin}→{destination}: {len(pending)} de {len(dates)} "
+                f"datas falharam de vez; ex.: {reasons.get(pending[0], 'motivo desconhecido')}"
             )
         return all_flights
 
