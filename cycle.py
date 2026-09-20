@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 _searcher = GoogleFlightsSearcher()
 DEALS_PATH = "deals.json"
 HISTORY_PATH = "history.json"
+FAILURE_ALERT_RATIO = 0.5
 
 
 class EmptyCycleError(RuntimeError):
@@ -44,6 +45,7 @@ async def process_round_trips(rt_ida, rt_volta, watches, all_deals, ttl_hours) -
 
 async def run_azul_cycle(include_far: bool = False) -> None:
     today = date.today()
+    _searcher.reset_counters()
     logger.info(f"ciclo {'longo (até 180 dias)' if include_far else 'curto (até 120 dias)'}")
     await cache.purge_expired()
     await history.init_db()
@@ -155,8 +157,16 @@ async def run_azul_cycle(include_far: bool = False) -> None:
         logger.error(f"histórico do painel não gravado: {e}")
     logger.info(f"histórico: {enriched} de {len(all_deals)} registros com série de preços")
     logger.info(f"deals snapshot: {len(all_deals)} registros → {DEALS_PATH}")
+
+    if _searcher.queries and _searcher.failures / _searcher.queries > FAILURE_ALERT_RATIO:
+        await telegram_bot.send_health_alert(
+            f"Mais da metade das consultas falhou neste ciclo "
+            f"({_searcher.failures} de {_searcher.queries}). O painel foi atualizado com o que "
+            f"deu para buscar — veja o log do Actions."
+        )
+
     logger.info(
         f"CICLO AZUL CONCLUÍDO — alertas: {total_alerts} | "
         f"alertas de preço: {total_price_alerts} | erros: {total_errors} | "
-        f"ida+volta: {total_rt_alerts}"
+        f"ida+volta: {total_rt_alerts} | consultas: {_searcher.queries} | falhas: {_searcher.failures}"
     )

@@ -20,6 +20,10 @@ _CURRENCY = "BRL"
 # Google lists some fares (self-transfer itineraries) with no carrier name.
 NO_AIRLINE_LABEL = "Cia não informada"
 
+MAX_RETRIES = 2          # extra attempts after the first
+RETRY_BACKOFF_S = 1.0    # sleep is RETRY_BACKOFF_S * attempt: 1 s, then 2 s
+_NO_FLIGHTS = "No flights found"
+
 
 def _parse_time(raw: str) -> str:
     """Convert '7:40 AM' / '3:05 PM' to '07h40' / '15h05'."""
@@ -70,6 +74,14 @@ def _parse_stops(raw) -> int:
 class GoogleFlightsSearcher(FlightSearcher):
     AIRLINE_NAME = "GOOGLE_FALLBACK"
 
+    def __init__(self) -> None:
+        self.queries = 0
+        self.failures = 0
+
+    def reset_counters(self) -> None:
+        self.queries = 0
+        self.failures = 0
+
     async def search(self, origin: str, destination: str, departure_date: date) -> List[Flight]:
         date_str = departure_date.strftime("%Y-%m-%d")
         tfs = TFSData.from_interface(
@@ -81,11 +93,28 @@ class GoogleFlightsSearcher(FlightSearcher):
         )
         fn = partial(get_flights_from_filter, tfs, currency=_CURRENCY, mode="common")
         loop = asyncio.get_running_loop()
-        try:
-            result = await loop.run_in_executor(None, fn)
-        except Exception as e:
-            logger.warning(f"Google Flights/{origin}→{destination} {departure_date}: {e}")
-            return []
+        self.queries += 1
+        result = None
+        for attempt in range(MAX_RETRIES + 1):
+            try:
+                result = await loop.run_in_executor(None, fn)
+                break
+            except Exception as e:
+                # fast_flights raises when a date simply has no fares and puts the whole
+                # page in the message: a valid empty answer, not worth a retry or 5 KB of log.
+                if str(e).startswith(_NO_FLIGHTS):
+                    logger.debug(f"Google Flights/{origin}→{destination} {departure_date}: sem voos")
+                    return []
+                if attempt == MAX_RETRIES:
+                    self.failures += 1
+                    logger.warning(
+                        f"Google Flights/{origin}→{destination} {departure_date}: "
+                        f"falhou após {MAX_RETRIES + 1} tentativas: {str(e)[:160]}"
+                    )
+                    return []
+                logger.debug(f"Google Flights/{origin}→{destination} {departure_date}: "
+                             f"tentativa {attempt + 1} falhou: {str(e)[:160]}")
+                await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
 
         return self._parse(result, origin, destination, departure_date)
 
