@@ -115,6 +115,38 @@ async def test_cycle_writes_the_history_file_for_the_panel(monkeypatch, tmp_path
     assert "CNF|GIG" in payload["rotas"]
 
 
+async def test_the_panels_route_summary_shares_the_baseline_the_verdicts_were_judged_against(
+        monkeypatch, tmp_path):
+    """`rotas` must be the pre-record picture: the panel prints "Preço típico" right next to a
+    "vs. rota" percentage, and the two cannot be computed against different medians."""
+    await _silence_telegram(monkeypatch)
+    await history.init_db()
+    dep = (date.today() + timedelta(days=40)).isoformat()
+    seen = datetime.now(timezone.utc) - timedelta(days=2)
+    # Five flight dates, dep sitting exactly in the middle at 500: recording today's 300 would
+    # pull dep's typical price to 400 and the route median from 500 to 400.
+    others = [(date.today() + timedelta(days=50 + i)).isoformat() for i in range(4)]
+    await history.record(
+        [{"origem": "CNF", "destino": "GIG", "data": dep, "preco": 500.0}]
+        + [{"origem": "CNF", "destino": "GIG", "data": d, "preco": p}
+           for d, p in zip(others, (100.0, 200.0, 900.0, 1000.0))],
+        seen_at=seen,
+    )
+    _only_gig(_canned(price=300.0), monkeypatch)
+    deals_path, hist_path = tmp_path / "deals.json", tmp_path / "h.json"
+    monkeypatch.setattr(cycle, "DEALS_PATH", str(deals_path))
+    monkeypatch.setattr(cycle, "HISTORY_PATH", str(hist_path))
+
+    await cycle.run_azul_cycle()
+
+    rotas = json.load(open(hist_path, encoding="utf-8"))["rotas"]
+    gig = next(d for d in json.load(open(deals_path, encoding="utf-8"))["deals"]
+               if d["destino"] == "GIG" and d["data"] == dep)
+    assert rotas["CNF|GIG"]["med"] == 500.0          # not 400.0, today's fare stays out
+    assert gig["rota_med"] == rotas["CNF|GIG"]["med"]
+    assert gig["rota_delta_pct"] == -40
+
+
 async def test_cycle_rolls_departed_flights_up_before_reading_stats(monkeypatch, tmp_path):
     await _silence_telegram(monkeypatch)
     await history.init_db()

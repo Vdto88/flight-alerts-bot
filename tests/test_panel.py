@@ -70,6 +70,14 @@ def test_write_deals_roundtrip(tmp_path):
     assert data["deals"] == deals
 
 
+def test_write_deals_ships_the_history_window_so_the_panel_need_not_guess(tmp_path):
+    import history
+    out = tmp_path / "deals.json"
+    panel.write_deals([], str(out))
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["hist_janela_dias"] == history.STATS_DAYS
+
+
 def test_write_deals_defaults_timestamp(tmp_path):
     out = tmp_path / "deals.json"
     panel.write_deals([], str(out))

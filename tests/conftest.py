@@ -19,4 +19,4 @@ def use_tmp_deals_path(tmp_path, monkeypatch):
     """Keep cycle runs from overwriting the real deals.json / history.json in the repo root."""
     import cycle as cycle_module
     monkeypatch.setattr(cycle_module, "DEALS_PATH", str(tmp_path / "deals.json"))
-    monkeypatch.setattr(cycle_module, "HISTORY_PATH", str(tmp_path / "history.json"), raising=False)
+    monkeypatch.setattr(cycle_module, "HISTORY_PATH", str(tmp_path / "history.json"))

@@ -61,6 +61,8 @@ def write_deals(deals: list[dict], path: str, generated_at: datetime | None = No
     ts = generated_at or datetime.now(timezone.utc)
     payload = {
         "gerado_em": ts.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        # The panels print this window next to every delta; hard-coding it there went stale once.
+        "hist_janela_dias": history.STATS_DAYS,
         "aeroportos": {code: place_fields(code) for code in AIRPORTS},
         "deals": deals,
     }

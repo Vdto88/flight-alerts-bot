@@ -129,9 +129,11 @@ async def run_azul_cycle() -> None:
 
     panel.write_deals(all_deals, DEALS_PATH)
     try:
-        # Re-read after recording so the charts end on today's point.
+        # The route summary is the same pre-record baseline the verdicts were computed against,
+        # so the panel cannot contradict itself; only the series are re-read after recording,
+        # so the charts end on today's point.
         panel.write_history(
-            panel.build_history_payload(await history.route_stats(), await history.all_series()),
+            panel.build_history_payload(route_stats, await history.all_series()),
             HISTORY_PATH,
         )
     except Exception as e:
