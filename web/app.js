@@ -97,6 +97,18 @@ function delta(d) {
   return `<span class="delta ${dir}" title="${Math.abs(p)}% ${word} da média de 30 dias">${icon(dir)}${Math.abs(p)}% ${word}</span>`;
 }
 
+/* Same ±3% dead band as delta(), but against what the route typically costs: inside
+   the band this fare simply is the route's price. Signed form feeds the table column. */
+function rotaDelta(d, signed = false) {
+  if (d.rota_delta_pct == null) return "";
+  const p = d.rota_delta_pct;
+  const cls = Math.abs(p) <= 3 ? "flat" : p < 0 ? "down" : "up";
+  const text = signed
+    ? `${p > 0 ? "+" : ""}${p}%`
+    : cls === "flat" ? "na média da rota" : `${Math.abs(p)}% ${p < 0 ? "abaixo" : "acima"} da rota`;
+  return `<span class="delta ${cls}" title="Preço típico da rota: ${fmtBRL(d.rota_med)}">${text}</span>`;
+}
+
 /* Daily-minimum sparkline that ends on today's fare, coloured like the delta. */
 function spark(d) {
   if (!d.spark || d.spark.length < 2) return "";
@@ -350,6 +362,7 @@ function iata(code, extra = "") {
 const LEAD_LABELS = ["0–7 d", "8–14 d", "15–30 d", "31–60 d", "61–90 d", "91–120 d", "121–180 d"];
 const DOW_LABELS = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];   // Python weekday(): Monday = 0
 const MIN_CLOSED_DATES = 20, MIN_LEAD_BUCKETS = 4;
+const MIN_ROUTE_DATES = 5;   // mirrors history.MIN_ROUTE_DATES: below it a route median means nothing
 
 /* Daily series of one flight date: line, median rule, floor rule, today's point. */
 function dateChart(d) {
@@ -381,18 +394,25 @@ function dateChart(d) {
 
 function barRows(entries, fmtKey) {
   if (!entries.length) return "";
-  const max = Math.max(...entries.map(([, v]) => v));
-  const min = Math.min(...entries.map(([, v]) => v));
-  return entries.map(([k, v]) => `<div class="bar-row${v === min ? " is-low" : ""}">
+  const values = entries.map(([, v]) => v);
+  const max = Math.max(...values), min = Math.min(...values);
+  // Fares of one route sit in a narrow band, so a bar drawn from zero would make R$ 261 and
+  // R$ 266 look identical. Spread them across the group's own range instead, keeping a 30%
+  // floor so the cheapest bar is still a bar. All equal: full width, and no cheapest to mark.
+  const flat = max === min;
+  const width = (v) => (flat ? 100 : Math.round(30 + 70 * ((v - min) / (max - min))));
+  return entries.map(([k, v]) => `<div class="bar-row${!flat && v === min ? " is-low" : ""}">
     <span class="bar-key">${esc(fmtKey(k))}</span>
-    <span class="bar-track"><span class="bar-fill" style="width:${Math.round((v / max) * 100)}%"></span></span>
+    <span class="bar-track"><span class="bar-fill" style="width:${width(v)}%"></span></span>
     <span class="bar-val num">${fmtBRL(v)}</span></div>`).join("");
 }
 
 /* What the route usually costs, and (once enough flights have departed) when to buy. */
 function routeSection(d) {
   const r = HISTORY.rotas[`${d.origem}|${d.destino}`];
-  if (!r) return "";
+  // Too few flight dates for a median to mean anything — and the stub above already
+  // says "sem histórico", so a confident route summary here would contradict it.
+  if (!r || r.n_dates < MIN_ROUTE_DATES) return "";
   const months = Object.entries(r.by_month).sort(([a], [b]) => a.localeCompare(b));
   const dows = Object.entries(r.by_dow).sort(([a], [b]) => Number(a) - Number(b));
   const lead = r.lead_curve || [];
@@ -445,9 +465,7 @@ function passHTML(g, i) {
       <span class="pass-stub">
         <span><span class="fare-label">Tarifa${g.rt ? " total" : ""}</span>
           <span class="fare"><small>R$</small>${fmtInt(d.preco)}</span></span>
-        ${delta(d) || (g.rt ? "" : d.rota_delta_pct != null
-          ? `<span class="delta ${d.rota_delta_pct < -3 ? "down" : d.rota_delta_pct > 3 ? "up" : "flat"}" title="Comparado ao preço típico da rota, ${fmtBRL(d.rota_med)}">${Math.abs(d.rota_delta_pct)}% ${d.rota_delta_pct < 0 ? "abaixo" : "acima"} da rota</span>`
-          : '<span class="delta flat">sem histórico</span>')}
+        ${delta(d) || (g.rt ? "" : rotaDelta(d) || '<span class="delta flat">sem histórico</span>')}
       </span>
     </button>
     <div class="pass-foot">
@@ -479,8 +497,7 @@ function tableRowHTML(d) {
     ${cell("Cia", `${cia}${isRT(d) ? "" : ` <span class="muted">· ${d.direto ? "direto" : d.paradas + " parada(s)"}</span>`}`)}
     ${cell("Tarifa", `<span class="num">${fmtBRL(d.preco)}</span>`)}
     ${cell("vs. média", delta(d) || '<span class="muted">sem histórico</span>')}
-    ${cell("vs. rota", d.rota_delta_pct == null ? '<span class="muted">—</span>'
-      : `<span class="delta ${d.rota_delta_pct < -3 ? "down" : d.rota_delta_pct > 3 ? "up" : "flat"}" title="Preço típico da rota: ${fmtBRL(d.rota_med)}">${d.rota_delta_pct > 0 ? "+" : ""}${d.rota_delta_pct}%</span>`)}
+    ${cell("vs. rota", rotaDelta(d, true) || '<span class="muted">—</span>')}
     ${cell("Sinal", badges(d) || "—")}
     ${cell("", link)}
   </tr>`;
