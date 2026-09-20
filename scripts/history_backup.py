@@ -79,12 +79,10 @@ def backup(db_path: Path, password: str, run=subprocess.run,
            marker: Path = RESTORE_FAILED_MARKER) -> bool:
     db_path, marker = Path(db_path), Path(marker)
     if marker.exists():
-        logger.error("backup bloqueado: o restore falhou nesta execução, "
+        # The marker travels with the thin database inside the actions/cache entry, and only a
+        # successful restore clears it: until one happens, every later run stays blocked too.
+        logger.error("backup bloqueado: o restore do histórico falhou e não foi refeito, "
                      "a cópia boa na release foi preservada")
-        try:
-            marker.unlink()     # data/ is cached, so the block must not survive into another run
-        except OSError:
-            pass
         return False
     if not db_path.exists():
         logger.warning(f"{db_path} não existe; nada para salvar")

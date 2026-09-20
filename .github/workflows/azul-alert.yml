@@ -41,7 +41,9 @@ jobs:
 
       - name: Restore history from release when the cache is cold
         id: restore_history
-        if: hashFiles('data/cache.db') == ''
+        # Also retried when a previous run left the block marker behind: the cached database is
+        # then the thin one that run started with, and the release copy must overwrite it.
+        if: hashFiles('data/cache.db') == '' || hashFiles('data/.restore_failed') != ''
         continue-on-error: true
         env:
           PANEL_PASSWORD: ${{ secrets.PANEL_PASSWORD }}

@@ -110,7 +110,28 @@ def test_backup_refuses_to_upload_over_a_backup_it_could_not_restore(tmp_path):
 
     assert hb.backup(db, "segredo", run=gh, marker=marker) is False
     assert gh.calls == []                       # nothing was uploaded over the good copy
-    assert not marker.exists()                  # and the block never reaches the next run
+    # The marker stays: data/ is cached, so a later run would otherwise find a warm cache,
+    # skip the restore entirely and clobber the release with this thin database.
+    assert marker.exists()
+    assert hb.backup(db, "segredo", run=gh, marker=marker) is False
+    assert gh.calls == []
+
+
+def test_a_retried_restore_replaces_the_thin_database_and_unblocks_backups(tmp_path):
+    """The workflow re-runs the restore while the marker is there; that must self-heal."""
+    db, marker = tmp_path / "cache.db", marker_in(tmp_path)
+    db.write_bytes(b"the empty database the blocked run built")
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text("")
+    asset = json.dumps(encrypt_bytes(b"SQLite format 3\x00the real history", "segredo")).encode()
+
+    assert hb.restore(db, "segredo", run=FakeGh(asset=asset), marker=marker) is True
+    assert db.read_bytes() == b"SQLite format 3\x00the real history"
+    assert not marker.exists()
+
+    gh = FakeGh()
+    assert hb.backup(db, "segredo", run=gh, marker=marker) is True
+    assert [c[2] for c in gh.calls] == ["upload"]
 
 
 def test_backup_creates_the_release_when_the_upload_finds_none(tmp_path):
