@@ -1,8 +1,11 @@
 import json
-from datetime import date, timedelta
+import os
+from datetime import date, datetime, timedelta, timezone
+from unittest.mock import AsyncMock
+
+import pytest
 
 import cache
-import config
 import cycle
 import far_cache
 import history
@@ -75,6 +78,68 @@ async def test_carried_records_are_not_recorded_into_history_again(monkeypatch):
     await cycle.run_azul_cycle(include_far=False)
     assert all("visto_em" not in d for d in recorded)
     assert FAR_DAY.isoformat() not in {d["data"] for d in recorded}
+
+
+async def _seed_history(prices_by_days_ago: dict[int, float]) -> None:
+    """Give CNF|GIG|FAR_DAY a series older than today, so enrich_with_history has something
+    to compare against on the very first cycle. 700 then 500 → median 600 today, and 500 once
+    today's own 300 joins the series — two clearly different verdicts."""
+    await history.init_db()
+    for days_ago, price in prices_by_days_ago.items():
+        await history.record(
+            [{"origem": "CNF", "destino": "GIG", "data": FAR_DAY.isoformat(), "preco": price}],
+            seen_at=datetime.now(timezone.utc) - timedelta(days=days_ago),
+        )
+
+
+def _far_file_records() -> list[dict]:
+    stored = json.loads(far_cache.FAR_PATH.read_text(encoding="utf-8"))["deals"]
+    return [d for d in stored if d["data"] == FAR_DAY.isoformat()]
+
+
+async def test_the_far_file_stores_records_that_already_carry_their_history(monkeypatch):
+    await cache.init_db()
+    await _seed_history({3: 700.0, 2: 500.0})
+    _patch(monkeypatch, [])
+
+    await cycle.run_azul_cycle(include_far=True)
+    stored = _far_file_records()
+    assert len(stored) == 1
+    assert stored[0]["hist_med"] == 600.0 and stored[0]["delta_pct"] == -50
+
+
+async def test_a_carried_record_keeps_the_verdict_of_the_cycle_that_searched_it(monkeypatch):
+    # Today's price was recorded by this morning's far cycle, so re-enriching the carried
+    # record here would compare its fare against a median that already contains itself.
+    await cache.init_db()
+    await _seed_history({3: 700.0, 2: 500.0})
+    _patch(monkeypatch, [])
+
+    await cycle.run_azul_cycle(include_far=True)
+    far_verdict = _far_file_records()[0]["delta_pct"]
+
+    await cycle.run_azul_cycle(include_far=False)
+    carried = [d for d in _snapshot() if d["data"] == FAR_DAY.isoformat()]
+    assert len(carried) == 1 and carried[0]["visto_em"]
+    assert carried[0]["delta_pct"] == far_verdict == -50   # not the -40 of a self-inclusive median
+
+
+async def test_carried_records_cannot_rescue_an_empty_cycle(monkeypatch):
+    await cache.init_db()
+    _patch(monkeypatch, [])
+    await cycle.run_azul_cycle(include_far=True)       # far file now has records
+    os.remove(cycle.DEALS_PATH)
+
+    async def nothing(self, origin, destination, dates, batch_size=7):
+        return []
+
+    monkeypatch.setattr(GoogleFlightsSearcher, "search_dates", nothing)
+    health = AsyncMock(return_value=True)
+    monkeypatch.setattr(telegram_bot, "send_health_alert", health)
+    with pytest.raises(cycle.EmptyCycleError):
+        await cycle.run_azul_cycle(include_far=False)
+    health.assert_awaited_once()
+    assert not os.path.exists(cycle.DEALS_PATH)        # no snapshot full of stale fares
 
 
 async def test_near_cycle_does_not_overwrite_the_far_file(monkeypatch):

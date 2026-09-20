@@ -1,4 +1,5 @@
 import logging
+import time
 from datetime import date
 
 import cache
@@ -44,6 +45,10 @@ async def process_round_trips(rt_ida, rt_volta, watches, all_deals, ttl_hours) -
 
 
 async def run_azul_cycle(include_far: bool = False) -> None:
+    # The job has a hard timeout-minutes kill; the summary below reports how much of it the
+    # cycle used, so the drift toward the cutoff is a number in the log, not an arithmetic
+    # exercise over timestamps.
+    started = time.monotonic()
     today = date.today()
     _searcher.reset_counters()
     logger.info(f"ciclo {'longo (até 180 dias)' if include_far else 'curto (até 120 dias)'}")
@@ -129,19 +134,26 @@ async def run_azul_cycle(include_far: bool = False) -> None:
         rt_ida, rt_volta, ROUND_TRIP_WATCHES, all_deals, CACHE_TTL_HOURS
     )
 
-    # Only what this cycle searched is recorded. Far-band records carried from the last far
-    # cycle were recorded by the cycle that found them, and they are appended after every
-    # alert has been evaluated, so they can never fire or re-fire one.
+    # Only what this cycle searched is recorded, enriched or alerted on. Far-band records
+    # carried from the last far cycle were recorded by the cycle that found them, and they are
+    # appended after every alert has been evaluated, so they can never fire or re-fire one.
+    # They are not re-enriched either: their price was written into the history this morning,
+    # under today's date, so comparing them against today's baseline would measure them
+    # against a median that already contains themselves. They keep the far cycle's verdict —
+    # which `visto_em` already tells the reader is a few hours old.
     searched = list(all_deals)
+    carried: list[dict] = []
+    if not include_far:
+        carried = far_cache.load_carried(all_deals, today, WINDOW_MAX_DAYS)
+        logger.info(f"datas distantes: {len(carried)} registros reaproveitados do ciclo longo")
+
+    enriched = panel.enrich_with_history(searched, stats, route_stats)
     if include_far:
+        # After the enrichment: the stored records then already carry their history fields.
         kept = far_cache.save(all_deals, today, WINDOW_MAX_DAYS)
         logger.info(f"datas distantes: {kept} registros guardados para os ciclos curtos")
     else:
-        carried = far_cache.load_carried(all_deals, today, WINDOW_MAX_DAYS)
         all_deals.extend(carried)
-        logger.info(f"datas distantes: {len(carried)} registros reaproveitados do ciclo longo")
-
-    enriched = panel.enrich_with_history(all_deals, stats, route_stats)
     await history.record(searched)
 
     panel.write_deals(all_deals, DEALS_PATH)
@@ -155,7 +167,7 @@ async def run_azul_cycle(include_far: bool = False) -> None:
         )
     except Exception as e:
         logger.error(f"histórico do painel não gravado: {e}")
-    logger.info(f"histórico: {enriched} de {len(all_deals)} registros com série de preços")
+    logger.info(f"histórico: {enriched} de {len(searched)} registros buscados com série de preços")
     logger.info(f"deals snapshot: {len(all_deals)} registros → {DEALS_PATH}")
 
     if _searcher.queries and _searcher.failures / _searcher.queries > FAILURE_ALERT_RATIO:
@@ -168,5 +180,7 @@ async def run_azul_cycle(include_far: bool = False) -> None:
     logger.info(
         f"CICLO AZUL CONCLUÍDO — alertas: {total_alerts} | "
         f"alertas de preço: {total_price_alerts} | erros: {total_errors} | "
-        f"ida+volta: {total_rt_alerts} | consultas: {_searcher.queries} | falhas: {_searcher.failures}"
+        f"ida+volta: {total_rt_alerts} | consultas: {_searcher.queries} | "
+        f"falhas: {_searcher.failures} | sem voos: {_searcher.no_flights} | "
+        f"duração: {round((time.monotonic() - started) / 60)} min"
     )
