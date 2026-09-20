@@ -77,12 +77,17 @@ class GoogleFlightsSearcher(FlightSearcher):
     def __init__(self) -> None:
         self.queries = 0
         self.failures = 0
+        self.no_flights = 0
 
     def reset_counters(self) -> None:
         self.queries = 0
         self.failures = 0
+        self.no_flights = 0
 
-    async def search(self, origin: str, destination: str, departure_date: date) -> List[Flight]:
+    async def _search_once(self, origin: str, destination: str,
+                           departure_date: date) -> Optional[List[Flight]]:
+        """One fetch + parse, with no sleeping and no counting of queries/failures.
+        `None` means a transient failure worth retrying; `[]` is a valid empty answer."""
         date_str = departure_date.strftime("%Y-%m-%d")
         tfs = TFSData.from_interface(
             flight_data=[FlightData(date=date_str, from_airport=origin, to_airport=destination)],
@@ -93,30 +98,79 @@ class GoogleFlightsSearcher(FlightSearcher):
         )
         fn = partial(get_flights_from_filter, tfs, currency=_CURRENCY, mode="common")
         loop = asyncio.get_running_loop()
-        self.queries += 1
-        result = None
-        for attempt in range(MAX_RETRIES + 1):
-            try:
-                result = await loop.run_in_executor(None, fn)
-                break
-            except Exception as e:
-                # fast_flights raises when a date simply has no fares and puts the whole
-                # page in the message: a valid empty answer, not worth a retry or 5 KB of log.
-                if str(e).startswith(_NO_FLIGHTS):
-                    logger.debug(f"Google Flights/{origin}→{destination} {departure_date}: sem voos")
-                    return []
-                if attempt == MAX_RETRIES:
-                    self.failures += 1
-                    logger.warning(
-                        f"Google Flights/{origin}→{destination} {departure_date}: "
-                        f"falhou após {MAX_RETRIES + 1} tentativas: {str(e)[:160]}"
-                    )
-                    return []
-                logger.debug(f"Google Flights/{origin}→{destination} {departure_date}: "
-                             f"tentativa {attempt + 1} falhou: {str(e)[:160]}")
-                await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
-
+        try:
+            result = await loop.run_in_executor(None, fn)
+        except Exception as e:
+            # fast_flights raises when a date simply has no fares and puts the whole page in
+            # the message: a valid empty answer, not worth a retry or 5 KB of log. Matched
+            # anywhere in the message so a changed prefix upstream still hits; the counter
+            # next door is what makes a broken match visible (it drops to zero).
+            if _NO_FLIGHTS in str(e):
+                self.no_flights += 1
+                logger.debug(f"Google Flights/{origin}→{destination} {departure_date}: sem voos")
+                return []
+            logger.debug(f"Google Flights/{origin}→{destination} {departure_date}: "
+                         f"tentativa falhou: {str(e)[:160]}")
+            return None
         return self._parse(result, origin, destination, departure_date)
+
+    async def search(self, origin: str, destination: str, departure_date: date) -> List[Flight]:
+        """Single date, retried inline with backoff. `search_dates` below retries at the end
+        of the route instead; this path stays for one-off lookups."""
+        self.queries += 1
+        for attempt in range(MAX_RETRIES + 1):
+            flights = await self._search_once(origin, destination, departure_date)
+            if flights is not None:
+                return flights
+            if attempt == MAX_RETRIES:
+                self.failures += 1
+                logger.warning(
+                    f"Google Flights/{origin}→{destination} {departure_date}: "
+                    f"falhou após {MAX_RETRIES + 1} tentativas (motivo no log DEBUG)"
+                )
+                return []
+            await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
+        return []
+
+    async def search_dates(
+        self, origin: str, destination: str, dates: List[date], batch_size: int = 7
+    ) -> List[Flight]:
+        """Search a route's dates in concurrent batches, then retry the dates that failed in
+        further passes at the END of the route. Retrying inside a batch would make every batch
+        wait for its slowest member's backoff; here each pass pays a single sleep for the whole
+        route, whatever number of dates it is re-running."""
+        all_flights: List[Flight] = []
+        self.queries += len(dates)
+        pending = list(dates)
+        for attempt in range(MAX_RETRIES + 1):
+            if not pending:
+                break
+            if attempt:
+                await asyncio.sleep(RETRY_BACKOFF_S * attempt)
+            failed: List[date] = []
+            for start in range(0, len(pending), batch_size):
+                batch = pending[start:start + batch_size]
+                results = await asyncio.gather(
+                    *(self._search_once(origin, destination, d) for d in batch),
+                    return_exceptions=True,
+                )
+                for d, result in zip(batch, results):
+                    if isinstance(result, list):
+                        all_flights.extend(result)
+                        continue
+                    if isinstance(result, BaseException):
+                        logger.debug(f"Google Flights/{origin}→{destination} {d}: "
+                                     f"tentativa falhou: {str(result)[:160]}")
+                    failed.append(d)
+            pending = failed
+
+        if pending:
+            self.failures += len(pending)
+            logger.warning(
+                f"Google Flights/{origin}→{destination}: {len(pending)} data(s) falharam "
+                f"após {MAX_RETRIES + 1} tentativas"
+            )
+        return all_flights
 
     def _parse(self, result, origin: str, destination: str, departure_date: date) -> List[Flight]:
         flights: List[Flight] = []
