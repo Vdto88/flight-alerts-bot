@@ -11,6 +11,8 @@ scripts/akamai_cookies.json
 scripts/smiles_cache.json
 deals.json
 deals.enc.json
+history.json
+history.enc.json
 _site/
 scripts/exploration/
 .claude/

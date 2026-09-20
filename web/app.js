@@ -3,7 +3,6 @@
    ou uma tabela paginada para varrer tudo. */
 
 const $ = (id) => document.getElementById(id);
-const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const REDUCED_MOTION = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -21,6 +20,9 @@ let tableLimit = TABLE_PAGE;
 
 // code -> {cidade, uf, pais}; shipped inside the snapshot, straight from config.AIRPORTS.
 let AIRPORTS = {};
+// Window behind every "vs. média" number, shipped by the snapshot (history.STATS_DAYS).
+// The fallback is only for a cached snapshot written before the field existed.
+let HIST_DAYS = 60;
 const cityOf = (code) => (AIRPORTS[code] && AIRPORTS[code].cidade) || code;
 
 const isRT = (d) => d.tipo === "roundtrip";
@@ -57,21 +59,25 @@ const fmtFound = (date) => date.toLocaleString("pt-BR", {
   timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
 });
 
-/* ---------------- Decryption ---------------- */
-async function deriveKey(password, salt, iterations) {
-  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
-  return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
-    base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]
-  );
-}
+/* ---------------- Decryption (shared, see switch.js) ---------------- */
+let PASSWORD = "";
+const loadDeals = (password) => PanelCrypto.load("deals.enc.json", password);
 
-async function loadDeals(password) {
-  const res = await fetch("deals.enc.json", { cache: "no-store" });
-  const p = await res.json();
-  const key = await deriveKey(password, b64(p.salt), p.iterations);
-  const clear = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(p.iv) }, key, b64(p.ciphertext));
-  return JSON.parse(new TextDecoder().decode(clear));
+/* History is only needed once a pass is opened: fetch it once, share the promise. */
+let HISTORY = null;          // resolved payload, or false when it could not be loaded
+let historyPromise = null;
+function ensureHistory() {
+  if (!historyPromise) {
+    historyPromise = PanelCrypto.load("history.enc.json", PASSWORD)
+      .then((h) => { HISTORY = h; })
+      .catch((e) => {
+        // The panel only shows "Histórico indisponível"; this is the one diagnostic there is.
+        console.warn(`histórico não carregado (${(e && e.code) || "erro"}):`, e);
+        HISTORY = false;
+      })
+      .then(render);
+  }
+  return historyPromise;
 }
 
 /* ---------------- Small pieces of markup ---------------- */
@@ -84,18 +90,30 @@ function badges(d) {
   if (isRT(d)) out.push('<span class="badge rt">ida + volta</span>');
   if (d.azul_cheapest) out.push('<span class="badge azul">Azul mais barata</span>');
   if (d.price_watch != null) out.push(`<span class="badge watch">alvo ≤ ${fmtBRL(d.price_watch)}</span>`);
-  if (d.menor_hist) out.push(`<span class="badge low">${icon("star")} menor em 30d</span>`);
+  if (d.menor_hist) out.push(`<span class="badge low">${icon("star")} menor em ${HIST_DAYS}d</span>`);
   return out.join("");
 }
 
-/* Gap between this fare and its own 30-day median. Under ±3% it is noise. */
+/* Gap between this fare and its own median over the snapshot's window. Under ±3% it is noise. */
 function delta(d) {
   if (d.delta_pct == null) return "";
   const p = d.delta_pct;
   if (Math.abs(p) < 3) return `<span class="delta flat">na média</span>`;
   const dir = p < 0 ? "down" : "up";
   const word = p < 0 ? "abaixo" : "acima";
-  return `<span class="delta ${dir}" title="${Math.abs(p)}% ${word} da média de 30 dias">${icon(dir)}${Math.abs(p)}% ${word}</span>`;
+  return `<span class="delta ${dir}" title="${Math.abs(p)}% ${word} da média de ${HIST_DAYS} dias">${icon(dir)}${Math.abs(p)}% ${word}</span>`;
+}
+
+/* Same ±3% dead band as delta(), but against what the route typically costs: inside
+   the band this fare simply is the route's price. Signed form feeds the table column. */
+function rotaDelta(d, signed = false) {
+  if (d.rota_delta_pct == null) return "";
+  const p = d.rota_delta_pct;
+  const cls = Math.abs(p) <= 3 ? "flat" : p < 0 ? "down" : "up";
+  const text = signed
+    ? `${p > 0 ? "+" : ""}${p}%`
+    : cls === "flat" ? "na média da rota" : `${Math.abs(p)}% ${p < 0 ? "abaixo" : "acima"} da rota`;
+  return `<span class="delta ${cls}" title="Preço típico da rota: ${fmtBRL(d.rota_med)}">${text}</span>`;
 }
 
 /* Daily-minimum sparkline that ends on today's fare, coloured like the delta. */
@@ -197,7 +215,7 @@ function statusOf(d) {
   if (d.price_watch != null) return ["s-deal", `Alvo ≤ ${fmtInt(d.price_watch)}`];
   if (isRT(d)) return ["s-rt", `Ida+volta ${d.estadia}d`];
   if (d.delta_pct != null && d.delta_pct <= -3) return ["s-good", `▼ ${Math.abs(d.delta_pct)}% abaixo`];
-  if (d.menor_hist) return ["s-good", "Menor 30 dias"];
+  if (d.menor_hist) return ["s-good", `Menor ${HIST_DAYS} dias`];
   if (d.azul_cheapest) return ["s-azul", "Azul + barata"];
   return ["s-flat", "Na média"];
 }
@@ -348,6 +366,85 @@ function iata(code, extra = "") {
   return `<span class="iata"><b>${esc(code)}</b><small>${esc(extra || cityOf(code))}</small></span>`;
 }
 
+const LEAD_LABELS = ["0–7 d", "8–14 d", "15–30 d", "31–60 d", "61–90 d", "91–120 d", "121–180 d"];
+const DOW_LABELS = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];   // Python weekday(): Monday = 0
+const MIN_CLOSED_DATES = 20, MIN_LEAD_BUCKETS = 4;
+const MIN_ROUTE_DATES = 5;   // mirrors history.MIN_ROUTE_DATES: below it a route median means nothing
+
+/* Daily series of one flight date: line, median rule, floor rule, today's point. */
+function dateChart(d) {
+  const points = HISTORY.series[`${d.origem}|${d.destino}|${d.data}`];
+  if (!points || points.length < 2) return `<p class="hist-note">Ainda sem série suficiente para esta data.</p>`;
+  const prices = points.map(([, p]) => p);
+  const w = 560, h = 160, padL = 46, padR = 12, padT = 12, padB = 22;
+  const lo = Math.min(...prices), hi = Math.max(...prices), span = hi - lo || 1;
+  const x = (i) => padL + (i / (points.length - 1)) * (w - padL - padR);
+  const y = (v) => padT + (1 - (v - lo) / span) * (h - padT - padB);
+  const path = prices.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(" ");
+  const med = d.hist_med, rule = (v, cls, label) => (v == null || v < lo || v > hi) ? "" :
+    `<line class="${cls}" x1="${padL}" x2="${w - padR}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/>
+     <text class="rule-label" x="${w - padR}" y="${(y(v) - 4).toFixed(1)}" text-anchor="end">${label} ${fmtBRL(v)}</text>`;
+  const last = points.length - 1;
+  return `<figure class="hist-chart">
+    <figcaption>Preço desta data · ${points.length} dias observados</figcaption>
+    <svg viewBox="0 0 ${w} ${h}" role="img"
+      aria-label="Preço de ${fmtDate(d.data)} ao longo de ${points.length} dias: de ${fmtBRL(prices[0])} a ${fmtBRL(prices[last])}, mínimo ${fmtBRL(lo)}, máximo ${fmtBRL(hi)}">
+      <text class="axis" x="${padL - 6}" y="${y(hi) + 4}" text-anchor="end">${fmtInt(hi)}</text>
+      <text class="axis" x="${padL - 6}" y="${y(lo) + 4}" text-anchor="end">${fmtInt(lo)}</text>
+      <text class="axis" x="${padL}" y="${h - 4}">${fmtShort(points[0][0])}</text>
+      <text class="axis" x="${w - padR}" y="${h - 4}" text-anchor="end">${fmtShort(points[last][0])}</text>
+      ${rule(med, "rule-med", "mediana")}
+      <path class="series" d="${path}"/>
+      <circle class="today" cx="${x(last).toFixed(1)}" cy="${y(prices[last]).toFixed(1)}" r="4"/>
+    </svg></figure>`;
+}
+
+function barRows(entries, fmtKey) {
+  if (!entries.length) return "";
+  const values = entries.map(([, v]) => v);
+  const max = Math.max(...values), min = Math.min(...values);
+  // Fares of one route sit in a narrow band, so a bar drawn from zero would make R$ 261 and
+  // R$ 266 look identical. Spread them across the group's own range instead, keeping a 30%
+  // floor so the cheapest bar is still a bar. All equal: full width, and no cheapest to mark.
+  const flat = max === min;
+  const width = (v) => (flat ? 100 : Math.round(30 + 70 * ((v - min) / (max - min))));
+  return entries.map(([k, v]) => `<div class="bar-row${!flat && v === min ? " is-low" : ""}">
+    <span class="bar-key">${esc(fmtKey(k))}</span>
+    <span class="bar-track"><span class="bar-fill" style="width:${width(v)}%"></span></span>
+    <span class="bar-val num">${fmtBRL(v)}</span></div>`).join("");
+}
+
+/* What the route usually costs, and (once enough flights have departed) when to buy. */
+function routeSection(d) {
+  const r = HISTORY.rotas[`${d.origem}|${d.destino}`];
+  // Too few flight dates for a median to mean anything — and the stub above already
+  // says "sem histórico", so a confident route summary here would contradict it.
+  if (!r || r.n_dates < MIN_ROUTE_DATES) return "";
+  const months = Object.entries(r.by_month).sort(([a], [b]) => a.localeCompare(b));
+  const dows = Object.entries(r.by_dow).sort(([a], [b]) => Number(a) - Number(b));
+  const lead = r.lead_curve || [];
+  const enough = r.n_closed >= MIN_CLOSED_DATES && lead.length >= MIN_LEAD_BUCKETS;
+  return `<section class="hist-route" aria-label="Histórico da rota">
+    <h3>Rota ${esc(d.origem)} → ${esc(d.destino)}</h3>
+    <p class="hist-facts"><span>Preço típico <b class="num">${fmtBRL(r.med)}</b></span>
+      <span>Piso já visto <b class="num">${fmtBRL(r.min)}</b></span>
+      <span>${fmtInt(r.n_dates)} datas acompanhadas</span></p>
+    <div class="hist-cols">
+      <div><h4>Por mês do voo</h4>${barRows(months, (m) => MON[Number(m) - 1])}</div>
+      <div><h4>Por dia da semana</h4>${barRows(dows, (k) => DOW_LABELS[Number(k)])}</div>
+      <div><h4>Quando comprar</h4>${enough
+        ? barRows(lead.map((b) => [b.bucket, b.med]), (k) => LEAD_LABELS[Number(k)])
+        : `<p class="hist-note">Coletando dados — disponível após algumas semanas de voos encerrados (${fmtInt(r.n_closed)} de ${MIN_CLOSED_DATES}).</p>`}</div>
+    </div></section>`;
+}
+
+function historyBlock(g) {
+  if (g.rt) return "";
+  if (HISTORY === null) return `<p class="hist-note">Carregando histórico…</p>`;
+  if (HISTORY === false) return `<p class="hist-note">Histórico indisponível agora. Calendário e tabela seguem funcionando.</p>`;
+  return dateChart(g.best) + routeSection(g.best);
+}
+
 function passHTML(g, i) {
   const d = g.best;
   const open = OPEN.has(g.key);
@@ -375,14 +472,14 @@ function passHTML(g, i) {
       <span class="pass-stub">
         <span><span class="fare-label">Tarifa${g.rt ? " total" : ""}</span>
           <span class="fare"><small>R$</small>${fmtInt(d.preco)}</span></span>
-        ${delta(d) || (g.rt ? "" : '<span class="delta flat">sem histórico</span>')}
+        ${delta(d) || (g.rt ? "" : rotaDelta(d) || '<span class="delta flat">sem histórico</span>')}
       </span>
     </button>
     <div class="pass-foot">
       ${spark(d) || `<span class="kicker">${esc(placeOf(d))}</span>`}
       <span class="pass-toggle">${open ? "Fechar" : g.rt ? "Ver trechos" : "Ver calendário"} ${icon("chevron", "chevron")}</span>
     </div>
-    ${open ? `<div class="pass-body">${g.rt ? roundTripBody(d) : calendar(g) + datesTable(g)}</div>` : ""}
+    ${open ? `<div class="pass-body">${g.rt ? roundTripBody(d) : historyBlock(g) + calendar(g) + datesTable(g)}</div>` : ""}
   </article>`;
 }
 
@@ -407,6 +504,7 @@ function tableRowHTML(d) {
     ${cell("Cia", `${cia}${isRT(d) ? "" : ` <span class="muted">· ${d.direto ? "direto" : d.paradas + " parada(s)"}</span>`}`)}
     ${cell("Tarifa", `<span class="num">${fmtBRL(d.preco)}</span>`)}
     ${cell("vs. média", delta(d) || '<span class="muted">sem histórico</span>')}
+    ${cell("vs. rota", rotaDelta(d, true) || '<span class="muted">—</span>')}
     ${cell("Sinal", badges(d) || "—")}
     ${cell("", link)}
   </tr>`;
@@ -497,6 +595,7 @@ function fillSelect(el, label, values, fmt = (v) => v) {
 function setup(data) {
   DEALS = data.deals;
   AIRPORTS = data.aeroportos || {};
+  HIST_DAYS = data.hist_janela_dias || HIST_DAYS;
   GENERATED_AT = new Date(data.gerado_em);
 
   // The hub is whichever airport shows up in the most legs.
@@ -542,6 +641,7 @@ function setup(data) {
     if (!head) return;
     const key = head.closest(".pass").querySelector(".pass-top").dataset.key;
     OPEN.has(key) ? OPEN.delete(key) : OPEN.add(key);
+    if (OPEN.size) ensureHistory();
     render();
   });
 
@@ -566,6 +666,14 @@ function setup(data) {
   setTimeout(() => $("cards").classList.remove("booting"), 1200);
 }
 
+/* Only an OperationError from the decrypt is actually a wrong password (see switch.js);
+   telling a stale deploy or an old browser apart from one saves a lot of retyping. */
+const UNLOCK_MESSAGES = {
+  password: "Senha incorreta. Confira e tente de novo.",
+  unsupported: "Seu navegador é antigo demais para abrir o painel. Atualize o navegador e tente de novo.",
+};
+const UNLOCK_FALLBACK = "Não consegui carregar os dados agora. Tente de novo em alguns minutos.";
+
 async function unlock(event) {
   event.preventDefault();
   const btn = $("unlock"), err = $("error");
@@ -573,8 +681,12 @@ async function unlock(event) {
   btn.disabled = true;
   btn.textContent = "Validando…";
   try {
-    setup(await loadDeals($("password").value));
+    const password = $("password").value;
+    const data = await loadDeals(password);
+    PASSWORD = password;          // kept in memory only, to fetch history.enc.json later
+    setup(data);
   } catch (e) {
+    err.textContent = UNLOCK_MESSAGES[e && e.code] || UNLOCK_FALLBACK;
     err.hidden = false;
     btn.disabled = false;
     btn.textContent = "Embarcar";

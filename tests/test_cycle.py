@@ -32,7 +32,7 @@ async def test_run_cycle_sends_alert_when_azul_cheapest(monkeypatch):
 
     sent = []
 
-    async def fake_send(flight, comparison, topic_id=None):
+    async def fake_send(flight, comparison, topic_id=None, context=None):
         sent.append((flight, comparison, topic_id))
         return True
 
@@ -57,7 +57,7 @@ async def test_run_cycle_dedups_within_ttl(monkeypatch):
     monkeypatch.setattr(GoogleFlightsSearcher, "search_dates", fake_search_dates)
     sent = []
 
-    async def fake_send(flight, comparison, topic_id=None):
+    async def fake_send(flight, comparison, topic_id=None, context=None):
         sent.append(flight)
         return True
 
@@ -79,7 +79,7 @@ async def test_run_cycle_retries_when_send_fails(monkeypatch):
     monkeypatch.setattr(GoogleFlightsSearcher, "search_dates", fake_search_dates)
     attempts = []
 
-    async def failing_send(flight, comparison, topic_id=None):
+    async def failing_send(flight, comparison, topic_id=None, context=None):
         attempts.append(flight)
         return False   # failed send -> must NOT be cached
 
@@ -105,7 +105,7 @@ async def test_run_cycle_passes_group_topic_id(monkeypatch):
 
     sent = []
 
-    async def fake_send(flight, comparison, topic_id=None):
+    async def fake_send(flight, comparison, topic_id=None, context=None):
         sent.append(topic_id)
         return True
 
@@ -130,7 +130,7 @@ async def test_run_cycle_sends_price_alert_to_region_topic(monkeypatch):
 
     sent = []
 
-    async def fake_price(flight, max_price, topic_id=None):
+    async def fake_price(flight, max_price, topic_id=None, context=None):
         sent.append((flight, max_price, topic_id))
         return True
 
@@ -157,7 +157,7 @@ async def test_run_cycle_dedups_price_alert(monkeypatch):
 
     sent = []
 
-    async def fake_price(flight, max_price, topic_id=None):
+    async def fake_price(flight, max_price, topic_id=None, context=None):
         sent.append(flight)
         return True
 
@@ -185,11 +185,11 @@ async def test_run_cycle_azul_and_price_both_fire(monkeypatch):
 
     azul_sent, price_sent = [], []
 
-    async def fake_azul(flight, comparison, topic_id=None):
+    async def fake_azul(flight, comparison, topic_id=None, context=None):
         azul_sent.append(flight)
         return True
 
-    async def fake_price(flight, max_price, topic_id=None):
+    async def fake_price(flight, max_price, topic_id=None, context=None):
         price_sent.append(flight)
         return True
 
@@ -216,10 +216,10 @@ async def test_run_cycle_writes_deals_json(monkeypatch, tmp_path):
     monkeypatch.setattr(cycle, "GROUPS", [config.Group("Rio de Janeiro", ("GIG",), topic_id=4)])
     monkeypatch.setattr(cycle, "PRICE_WATCHES", [])
 
-    async def ok_azul(flight, comparison, topic_id=None):
+    async def ok_azul(flight, comparison, topic_id=None, context=None):
         return True
 
-    async def ok_price(flight, max_price, topic_id=None):
+    async def ok_price(flight, max_price, topic_id=None, context=None):
         return True
 
     monkeypatch.setattr(telegram_bot, "send_azul_alert", ok_azul)

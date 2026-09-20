@@ -61,6 +61,8 @@ def write_deals(deals: list[dict], path: str, generated_at: datetime | None = No
     ts = generated_at or datetime.now(timezone.utc)
     payload = {
         "gerado_em": ts.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        # The panels print this window next to every delta; hard-coding it there went stale once.
+        "hist_janela_dias": history.STATS_DAYS,
         "aeroportos": {code: place_fields(code) for code in AIRPORTS},
         "deals": deals,
     }
@@ -107,16 +109,24 @@ def build_round_trip_deals(rt_alerts: list[RoundTripAlert], region: str) -> list
     return deals
 
 
-def enrich_with_history(deals: list[dict], stats: dict[str, dict]) -> int:
-    """Attach the price history of each deal's route+date: window low, median, sparkline,
-    and how far today's fare sits from that median. Deals with fewer than two days of
-    observations are left alone — one point says nothing about cheap or expensive.
-    Round-trip records are skipped: their `preco` is a two-leg total, not comparable to
-    the one-way history stored under the same key."""
+def enrich_with_history(deals: list[dict], stats: dict[str, dict],
+                        route_stats: dict[str, dict] | None = None) -> int:
+    """Attach history to each one-way deal: its own route+date series (low, median,
+    sparkline, gap to the median) when there are two or more days of observations, and
+    the route-level median and floor whenever the route has enough flight dates — so a
+    date never seen before still gets a verdict. Round-trip records are skipped: their
+    `preco` is a two-leg total. Returns how many deals got a date-level series."""
+    route_stats = route_stats or {}
     enriched = 0
     for deal in deals:
         if deal.get("tipo") == "roundtrip":
             continue
+        route = route_stats.get(f"{deal['origem']}|{deal['destino']}")
+        if route and route["n_dates"] >= history.MIN_ROUTE_DATES:
+            deal["rota_med"] = route["med"]
+            deal["rota_min"] = route["min"]
+            deal["rota_delta_pct"] = round((deal["preco"] - route["med"]) / route["med"] * 100)
+
         entry = stats.get(history.deal_key(deal))
         if entry is None or len(entry["spark"]) < 2:
             continue
@@ -125,5 +135,22 @@ def enrich_with_history(deals: list[dict], stats: dict[str, dict]) -> int:
         deal["spark"] = entry["spark"]
         deal["delta_pct"] = round((deal["preco"] - entry["med"]) / entry["med"] * 100)
         deal["menor_hist"] = deal["preco"] <= entry["min"]
+        if "n" in entry:
+            deal["hist_dias"] = entry["n"]
+            deal["hist_desde"] = entry["since"]
         enriched += 1
     return enriched
+
+
+def build_history_payload(route_stats: dict[str, dict], series: dict[str, list[list]],
+                          generated_at: datetime | None = None) -> dict:
+    """What the panel downloads lazily to draw charts: per-route summary plus the daily
+    series of every live route+date."""
+    ts = generated_at or datetime.now(timezone.utc)
+    return {"gerado_em": ts.strftime("%Y-%m-%dT%H:%M:%SZ"), "rotas": route_stats, "series": series}
+
+
+def write_history(payload: dict, path: str) -> str:
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False)
+    return path

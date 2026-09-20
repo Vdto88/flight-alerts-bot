@@ -2,7 +2,6 @@
    cards com calendário de preços, ou uma tabela para quem prefere varrer tudo. */
 
 const $ = (id) => document.getElementById(id);
-const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 let DEALS = [];
@@ -10,6 +9,9 @@ let HUB = "CNF";
 let VIEW = "cards";
 let OPEN = new Set();
 let sortKey = "preco", sortDir = 1;
+// Window behind every "vs. média" number, shipped by the snapshot (history.STATS_DAYS).
+// The fallback is only for a cached snapshot written before the field existed.
+let HIST_DAYS = 60;
 
 const isRT = (d) => d.tipo === "roundtrip";
 const cidadeOf = (d) => (d.origem === HUB ? d.destino : d.origem);
@@ -31,23 +33,9 @@ const fmtFound = (iso) => new Date(iso).toLocaleString("pt-BR", {
   timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
 });
 
-/* ---------------- Decryption ---------------- */
-async function deriveKey(password, salt, iterations) {
-  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
-  return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
-    base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]
-  );
-}
-
-async function loadDeals(password) {
-  // The classic panel lives in /classic/ and reads the same snapshot as the new one.
-  const res = await fetch("../deals.enc.json", { cache: "no-store" });
-  const p = await res.json();
-  const key = await deriveKey(password, b64(p.salt), p.iterations);
-  const clear = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(p.iv) }, key, b64(p.ciphertext));
-  return JSON.parse(new TextDecoder().decode(clear));
-}
+/* ---------------- Decryption (shared, see ../switch.js) ---------------- */
+// The classic panel lives in /classic/ and reads the same snapshot as the new one.
+const loadDeals = (password) => PanelCrypto.load("../deals.enc.json", password);
 
 /* ---------------- Small pieces of markup ---------------- */
 function icon(name, cls = "") {
@@ -59,19 +47,19 @@ function badges(d) {
   if (isRT(d)) out.push('<span class="badge rt">ida + volta</span>');
   if (d.azul_cheapest) out.push('<span class="badge azul">Azul mais barata</span>');
   if (d.price_watch != null) out.push(`<span class="badge watch">alvo ≤ ${fmtBRL(d.price_watch)}</span>`);
-  if (d.menor_hist) out.push(`<span class="badge low">${icon("star")} menor em 30d</span>`);
+  if (d.menor_hist) out.push(`<span class="badge low">${icon("star")} menor em ${HIST_DAYS}d</span>`);
   return out.join("");
 }
 
-/* Percentage gap between this fare and its own 30-day median. Below ±3% the
-   noise outweighs the signal, so it reads as "na média" instead of a number. */
+/* Percentage gap between this fare and its own median over the snapshot's window. Below
+   ±3% the noise outweighs the signal, so it reads as "na média" instead of a number. */
 function delta(d) {
   if (d.delta_pct == null) return "";
   const p = d.delta_pct;
-  if (Math.abs(p) < 3) return `<span class="delta flat">na média de 30d</span>`;
+  if (Math.abs(p) < 3) return `<span class="delta flat">na média de ${HIST_DAYS}d</span>`;
   const dir = p < 0 ? "down" : "up";
   const word = p < 0 ? "abaixo" : "acima";
-  return `<span class="delta ${dir}" title="${Math.abs(p)}% ${word} da média de 30 dias">
+  return `<span class="delta ${dir}" title="${Math.abs(p)}% ${word} da média de ${HIST_DAYS} dias">
     ${icon(dir)} ${Math.abs(p)}% ${word}</span>`;
 }
 
@@ -320,6 +308,7 @@ function fillSelect(el, label, values) {
 
 function setup(data) {
   DEALS = data.deals;
+  HIST_DAYS = data.hist_janela_dias || HIST_DAYS;
   $("updated").textContent = "Atualizado em " + fmtFound(data.gerado_em) + " (Brasília)";
 
   // The hub is whichever airport shows up in the most legs — CNF today, but the
@@ -377,6 +366,14 @@ function setup(data) {
   setView("cards");
 }
 
+/* Only an OperationError from the decrypt is actually a wrong password (see ../switch.js);
+   telling a stale deploy or an old browser apart from one saves a lot of retyping. */
+const UNLOCK_MESSAGES = {
+  password: "Senha incorreta. Confira e tente de novo.",
+  unsupported: "Seu navegador é antigo demais para abrir o painel. Atualize o navegador e tente de novo.",
+};
+const UNLOCK_FALLBACK = "Não consegui carregar os dados agora. Tente de novo em alguns minutos.";
+
 async function unlock(event) {
   event.preventDefault();
   const btn = $("unlock"), err = $("error");
@@ -386,6 +383,7 @@ async function unlock(event) {
   try {
     setup(await loadDeals($("password").value));
   } catch (e) {
+    err.textContent = UNLOCK_MESSAGES[e && e.code] || UNLOCK_FALLBACK;
     err.hidden = false;
     btn.disabled = false;
     btn.textContent = "Entrar";

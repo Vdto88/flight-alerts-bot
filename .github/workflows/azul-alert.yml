@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -39,18 +39,37 @@ jobs:
           restore-keys: |
             azul-dedup-
 
+      - name: Restore history from release when the cache is cold
+        id: restore_history
+        # Also retried when a previous run left the block marker behind: the cached database is
+        # then the thin one that run started with, and the release copy must overwrite it.
+        if: hashFiles('data/cache.db') == '' || hashFiles('data/.restore_failed') != ''
+        continue-on-error: true
+        env:
+          PANEL_PASSWORD: ${{ secrets.PANEL_PASSWORD }}
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/history_backup.py restore
+
       - name: Run one pass
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
         run: python main.py
 
+      - name: Back up history to the release
+        id: backup_history
+        continue-on-error: true
+        env:
+          PANEL_PASSWORD: ${{ secrets.PANEL_PASSWORD }}
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/history_backup.py backup
+
       - name: Check snapshot is non-empty
         id: snapshot
         run: |
           python -c "import json, os; deals = (json.load(open('deals.json')).get('deals', []) if os.path.exists('deals.json') else []); open(os.environ['GITHUB_OUTPUT'], 'a').write('has_deals=' + ('true' if deals else 'false') + '\n')"
 
-      - name: Encrypt deals snapshot
+      - name: Encrypt deals and history
         if: steps.snapshot.outputs.has_deals == 'true'
         env:
           PANEL_PASSWORD: ${{ secrets.PANEL_PASSWORD }}
@@ -64,6 +83,7 @@ jobs:
           mkdir -p _site/classic
           cp web/classic/index.html web/classic/style.css web/classic/app.js _site/classic/
           cp deals.enc.json _site/
+          if [ -f history.enc.json ]; then cp history.enc.json _site/; fi
 
       - name: Upload Pages artifact
         if: steps.snapshot.outputs.has_deals == 'true'
