@@ -3,7 +3,7 @@ import logging
 import re
 from datetime import date
 from functools import partial
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from fast_flights import FlightData, Passengers
 # get_flights() does not expose the currency; call the engine directly so we can
@@ -19,6 +19,11 @@ _BOOKING_BASE = "https://www.google.com/travel/flights"
 _CURRENCY = "BRL"
 # Google lists some fares (self-transfer itineraries) with no carrier name.
 NO_AIRLINE_LABEL = "Cia não informada"
+
+MAX_RETRIES = 2          # extra attempts after the first
+RETRY_BACKOFF_S = 1.0    # sleep is RETRY_BACKOFF_S * attempt: 1 s, then 2 s
+_NO_FLIGHTS = "No flights found"
+_REASON_CHARS = 160      # a failure reason quoted in a log line, never the whole page
 
 
 def _parse_time(raw: str) -> str:
@@ -70,7 +75,21 @@ def _parse_stops(raw) -> int:
 class GoogleFlightsSearcher(FlightSearcher):
     AIRLINE_NAME = "GOOGLE_FALLBACK"
 
-    async def search(self, origin: str, destination: str, departure_date: date) -> List[Flight]:
+    def __init__(self) -> None:
+        self.queries = 0
+        self.failures = 0
+        self.no_flights = 0
+
+    def reset_counters(self) -> None:
+        self.queries = 0
+        self.failures = 0
+        self.no_flights = 0
+
+    async def _search_once(self, origin: str, destination: str,
+                           departure_date: date) -> Union[List[Flight], str]:
+        """One fetch + parse, with no sleeping and no counting of queries/failures.
+        A list is the answer (`[]` is a valid empty one); a str is a transient failure worth
+        retrying, and carries the reason, so the caller's single WARNING can name it."""
         date_str = departure_date.strftime("%Y-%m-%d")
         tfs = TFSData.from_interface(
             flight_data=[FlightData(date=date_str, from_airport=origin, to_airport=destination)],
@@ -84,10 +103,84 @@ class GoogleFlightsSearcher(FlightSearcher):
         try:
             result = await loop.run_in_executor(None, fn)
         except Exception as e:
-            logger.warning(f"Google Flights/{origin}→{destination} {departure_date}: {e}")
-            return []
-
+            # fast_flights raises when a date simply has no fares and puts the whole page in
+            # the message: a valid empty answer, not worth a retry or 5 KB of log. Matched
+            # anywhere in the message so a changed prefix upstream still hits; the counter
+            # next door is what makes a broken match visible (it drops to zero).
+            if _NO_FLIGHTS in str(e):
+                self.no_flights += 1
+                logger.debug(f"Google Flights/{origin}→{destination} {departure_date}: sem voos")
+                return []
+            reason = str(e)[:_REASON_CHARS]
+            logger.debug(f"Google Flights/{origin}→{destination} {departure_date}: "
+                         f"tentativa falhou: {reason}")
+            return reason
         return self._parse(result, origin, destination, departure_date)
+
+    async def search(self, origin: str, destination: str, departure_date: date) -> List[Flight]:
+        """Single date, retried inline with backoff. `search_dates` below retries at the end
+        of the route instead; this path stays for one-off lookups."""
+        self.queries += 1
+        for attempt in range(MAX_RETRIES + 1):
+            outcome = await self._search_once(origin, destination, departure_date)
+            if isinstance(outcome, list):
+                return outcome
+            if attempt == MAX_RETRIES:
+                self.failures += 1
+                logger.warning(
+                    f"Google Flights/{origin}→{destination} {departure_date}: "
+                    f"falhou após {MAX_RETRIES + 1} tentativas: {outcome}"
+                )
+                return []
+            await asyncio.sleep(RETRY_BACKOFF_S * (attempt + 1))
+        return []
+
+    async def search_dates(
+        self, origin: str, destination: str, dates: List[date], batch_size: int = 7
+    ) -> List[Flight]:
+        """Search a route's dates in concurrent batches, then retry the dates that failed in
+        further passes at the END of the route. Retrying inside a batch would make every batch
+        wait for its slowest member's backoff; here each pass pays a single sleep for the whole
+        route, whatever number of dates it is re-running."""
+        all_flights: List[Flight] = []
+        self.queries += len(dates)
+        pending = list(dates)
+        # Why each pending date failed, last attempt wins. The WARNING below quotes one of
+        # them: at INFO — the level the Actions log runs at — a bare count says an outage
+        # happened but not what it was, and the per-date reasons only exist at DEBUG.
+        reasons: dict[date, str] = {}
+        for attempt in range(MAX_RETRIES + 1):
+            if not pending:
+                break
+            if attempt:
+                await asyncio.sleep(RETRY_BACKOFF_S * attempt)
+            failed: List[date] = []
+            for start in range(0, len(pending), batch_size):
+                batch = pending[start:start + batch_size]
+                results = await asyncio.gather(
+                    *(self._search_once(origin, destination, d) for d in batch),
+                    return_exceptions=True,
+                )
+                for d, result in zip(batch, results):
+                    if isinstance(result, list):
+                        all_flights.extend(result)
+                        continue
+                    if isinstance(result, BaseException):
+                        reasons[d] = str(result)[:_REASON_CHARS]
+                        logger.debug(f"Google Flights/{origin}→{destination} {d}: "
+                                     f"tentativa falhou: {reasons[d]}")
+                    else:
+                        reasons[d] = result
+                    failed.append(d)
+            pending = failed
+
+        if pending:
+            self.failures += len(pending)
+            logger.warning(
+                f"Google Flights/{origin}→{destination}: {len(pending)} de {len(dates)} "
+                f"datas falharam de vez; ex.: {reasons.get(pending[0], 'motivo desconhecido')}"
+            )
+        return all_flights
 
     def _parse(self, result, origin: str, destination: str, departure_date: date) -> List[Flight]:
         flights: List[Flight] = []

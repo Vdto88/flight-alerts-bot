@@ -94,14 +94,61 @@ def test_round_trips_get_no_route_fields():
     assert "rota_med" not in deal
 
 
-def test_history_payload_and_file(tmp_path):
-    payload = panel.build_history_payload(
-        _route(), {"CNF|SJK|2026-09-10": [["2026-09-01", 400.0], ["2026-09-02", 300.0]]},
+def _payload():
+    return panel.build_history_payload(
+        _route(),                                   # only CNF|SJK has a route summary
+        {"CNF|SJK|2026-09-10": [["2026-09-01", 400.0], ["2026-09-02", 300.0]],
+         "CNF|SJK|2026-09-11": [["2026-09-02", 350.0]],
+         "POA|CNF|2026-10-01": [["2026-09-02", 500.0]]},
         generated_at=datetime(2026, 9, 18, 11, 0, tzinfo=timezone.utc))
+
+
+def test_history_payload_shape():
+    payload = _payload()
     assert payload["gerado_em"] == "2026-09-18T11:00:00Z"
     assert payload["rotas"]["CNF|SJK"]["med"] == 500.0
-    assert payload["series"]["CNF|SJK|2026-09-10"][-1] == ["2026-09-02", 300.0]
 
-    out = tmp_path / "history.json"
-    panel.write_history(payload, str(out))
-    assert json.loads(out.read_text(encoding="utf-8")) == payload
+
+def test_one_history_file_per_route_holding_only_that_route(tmp_path):
+    out = tmp_path / "history"
+    assert panel.write_history_files(_payload(), str(out)) == 2
+    sjk = json.loads((out / "CNF-SJK.json").read_text(encoding="utf-8"))
+    assert sjk["gerado_em"] == "2026-09-18T11:00:00Z"
+    assert sjk["rota"]["med"] == 500.0
+    assert sorted(sjk["series"]) == ["CNF|SJK|2026-09-10", "CNF|SJK|2026-09-11"]
+
+
+def test_a_route_first_seen_this_cycle_gets_a_file_without_a_summary(tmp_path):
+    out = tmp_path / "history"
+    panel.write_history_files(_payload(), str(out))
+    poa = json.loads((out / "POA-CNF.json").read_text(encoding="utf-8"))
+    assert poa["rota"] is None and list(poa["series"]) == ["POA|CNF|2026-10-01"]
+
+
+def test_files_of_routes_that_disappeared_are_removed(tmp_path):
+    out = tmp_path / "history"
+    out.mkdir()
+    (out / "CNF-OLD.json").write_text("{}", encoding="utf-8")
+    (out / "CNF-OLD.enc.json").write_text("{}", encoding="utf-8")
+    (out / "notes.txt").write_text("keep", encoding="utf-8")
+    panel.write_history_files(_payload(), str(out))
+    assert sorted(p.name for p in out.iterdir()) == ["CNF-SJK.json", "POA-CNF.json", "notes.txt"]
+
+
+def test_a_malformed_key_costs_only_itself_and_nothing_stale_survives(tmp_path):
+    out = tmp_path / "history"
+    out.mkdir()
+    (out / "CNF-OLD.json").write_text("{}", encoding="utf-8")
+    payload = _payload()
+    payload["series"]["quebrada"] = [["2026-09-02", 100.0]]
+    assert panel.write_history_files(payload, str(out)) == 2
+    assert sorted(p.name for p in out.iterdir()) == ["CNF-SJK.json", "POA-CNF.json"]
+
+
+def test_an_entirely_unusable_payload_leaves_the_previous_files_alone(tmp_path):
+    out = tmp_path / "history"
+    out.mkdir()
+    (out / "CNF-SJK.json").write_text('{"ontem": true}', encoding="utf-8")
+    payload = panel.build_history_payload(_route(), {"quebrada": [["2026-09-02", 100.0]]})
+    assert panel.write_history_files(payload, str(out)) == 0
+    assert (out / "CNF-SJK.json").read_text(encoding="utf-8") == '{"ontem": true}'

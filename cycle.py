@@ -1,7 +1,9 @@
 import logging
+import time
 from datetime import date
 
 import cache
+import far_cache
 import history
 import panel
 import telegram_bot
@@ -10,14 +12,15 @@ from airlines.google_flights import GoogleFlightsSearcher
 from alerts import evaluate, evaluate_threshold, evaluate_round_trip, round_trip_cache_key
 from config import (
     AZUL_HUB, GROUPS, PRICE_WATCHES, ROUND_TRIP_WATCHES,
-    WINDOW_MIN_DAYS, WINDOW_MAX_DAYS, BATCH_SIZE, CACHE_TTL_HOURS,
+    WINDOW_MIN_DAYS, WINDOW_MAX_DAYS, WINDOW_FAR_MAX_DAYS, BATCH_SIZE, CACHE_TTL_HOURS,
 )
 
 logger = logging.getLogger(__name__)
 
 _searcher = GoogleFlightsSearcher()
 DEALS_PATH = "deals.json"
-HISTORY_PATH = "history.json"
+HISTORY_DIR = "history"
+FAILURE_ALERT_RATIO = 0.5
 
 
 class EmptyCycleError(RuntimeError):
@@ -41,8 +44,14 @@ async def process_round_trips(rt_ida, rt_volta, watches, all_deals, ttl_hours) -
     return sent
 
 
-async def run_azul_cycle() -> None:
+async def run_azul_cycle(include_far: bool = False) -> None:
+    # The job has a hard timeout-minutes kill; the summary below reports how much of it the
+    # cycle used, so the drift toward the cutoff is a number in the log, not an arithmetic
+    # exercise over timestamps.
+    started = time.monotonic()
     today = date.today()
+    _searcher.reset_counters()
+    logger.info(f"ciclo {'longo (até 180 dias)' if include_far else 'curto (até 120 dias)'}")
     await cache.purge_expired()
     await history.init_db()
     await history.rollup_closed(today)
@@ -61,6 +70,7 @@ async def run_azul_cycle() -> None:
         dates = routing.target_dates(
             route.non_hub, today, GROUPS, WINDOW_MIN_DAYS, WINDOW_MAX_DAYS,
             PRICE_WATCHES, ROUND_TRIP_WATCHES,
+            far_max=WINDOW_FAR_MAX_DAYS if include_far else None,
         )
         try:
             flights = await _searcher.search_dates(
@@ -124,24 +134,53 @@ async def run_azul_cycle() -> None:
         rt_ida, rt_volta, ROUND_TRIP_WATCHES, all_deals, CACHE_TTL_HOURS
     )
 
-    enriched = panel.enrich_with_history(all_deals, stats, route_stats)
-    await history.record(all_deals)
+    # Only what this cycle searched is recorded, enriched or alerted on. Far-band records
+    # carried from the last far cycle were recorded by the cycle that found them, and they are
+    # appended after every alert has been evaluated, so they can never fire or re-fire one.
+    # They are not re-enriched either: their price was written into the history this morning,
+    # under today's date, so comparing them against today's baseline would measure them
+    # against a median that already contains themselves. They keep the far cycle's verdict —
+    # which `visto_em` already tells the reader is a few hours old.
+    searched = list(all_deals)
+    carried: list[dict] = []
+    if not include_far:
+        carried = far_cache.load_carried(all_deals, today, WINDOW_MAX_DAYS)
+        logger.info(f"datas distantes: {len(carried)} registros reaproveitados do ciclo longo")
+
+    enriched = panel.enrich_with_history(searched, stats, route_stats)
+    if include_far:
+        # After the enrichment: the stored records then already carry their history fields.
+        kept = far_cache.save(all_deals, today, WINDOW_MAX_DAYS)
+        logger.info(f"datas distantes: {kept} registros guardados para os ciclos curtos")
+    else:
+        all_deals.extend(carried)
+    await history.record(searched)
 
     panel.write_deals(all_deals, DEALS_PATH)
     try:
         # The route summary is the same pre-record baseline the verdicts were computed against,
         # so the panel cannot contradict itself; only the series are re-read after recording,
         # so the charts end on today's point.
-        panel.write_history(
+        panel.write_history_files(
             panel.build_history_payload(route_stats, await history.all_series()),
-            HISTORY_PATH,
+            HISTORY_DIR,
         )
     except Exception as e:
         logger.error(f"histórico do painel não gravado: {e}")
-    logger.info(f"histórico: {enriched} de {len(all_deals)} registros com série de preços")
+    logger.info(f"histórico: {enriched} de {len(searched)} registros buscados com série de preços")
     logger.info(f"deals snapshot: {len(all_deals)} registros → {DEALS_PATH}")
+
+    if _searcher.queries and _searcher.failures / _searcher.queries > FAILURE_ALERT_RATIO:
+        await telegram_bot.send_health_alert(
+            f"Mais da metade das consultas falhou neste ciclo "
+            f"({_searcher.failures} de {_searcher.queries}). O painel foi atualizado com o que "
+            f"deu para buscar — veja o log do Actions."
+        )
+
     logger.info(
         f"CICLO AZUL CONCLUÍDO — alertas: {total_alerts} | "
         f"alertas de preço: {total_price_alerts} | erros: {total_errors} | "
-        f"ida+volta: {total_rt_alerts}"
+        f"ida+volta: {total_rt_alerts} | consultas: {_searcher.queries} | "
+        f"falhas: {_searcher.failures} | sem voos: {_searcher.no_flights} | "
+        f"duração: {round((time.monotonic() - started) / 60)} min"
     )

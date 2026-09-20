@@ -78,6 +78,14 @@ def test_write_deals_ships_the_history_window_so_the_panel_need_not_guess(tmp_pa
     assert data["hist_janela_dias"] == history.STATS_DAYS
 
 
+def test_write_deals_ships_the_near_window_for_the_carried_dates_note(tmp_path):
+    import config
+    out = tmp_path / "deals.json"
+    panel.write_deals([], str(out))
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["janela_perto_dias"] == config.WINDOW_MAX_DAYS
+
+
 def test_write_deals_defaults_timestamp(tmp_path):
     out = tmp_path / "deals.json"
     panel.write_deals([], str(out))

@@ -1,6 +1,7 @@
 import pytest
 from datetime import date
 from unittest.mock import MagicMock, patch
+from airlines import google_flights
 from airlines.google_flights import GoogleFlightsSearcher, _parse_time, _parse_price
 
 
@@ -113,7 +114,11 @@ async def test_search_returns_flights():
     assert flights[0].price == 289.0
 
 
-async def test_search_returns_empty_on_exception():
+async def test_search_returns_empty_on_exception(monkeypatch):
+    async def fake_sleep(seconds):       # the retry backoff would really sleep 3 s here
+        return None
+
+    monkeypatch.setattr(google_flights.asyncio, "sleep", fake_sleep)
     searcher = GoogleFlightsSearcher()
     with patch("airlines.google_flights.get_flights_from_filter", side_effect=Exception("network error")):
         flights = await searcher.search("GRU", "CGH", date(2026, 5, 15))

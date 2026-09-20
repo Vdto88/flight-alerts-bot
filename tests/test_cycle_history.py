@@ -100,19 +100,19 @@ async def test_alerts_receive_context_computed_before_todays_price_is_recorded(m
     assert (ctx.delta_pct, ctx.is_lowest, ctx.scope) == (-33, True, "data")
 
 
-async def test_cycle_writes_the_history_file_for_the_panel(monkeypatch, tmp_path):
+async def test_cycle_writes_one_history_file_per_route_for_the_panel(monkeypatch, tmp_path):
     await _silence_telegram(monkeypatch)
     dep = (date.today() + timedelta(days=40)).isoformat()
     await _seed_two_days(dep)
     _only_gig(_canned(price=300.0), monkeypatch)
-    hist_path = tmp_path / "h.json"
-    monkeypatch.setattr(cycle, "HISTORY_PATH", str(hist_path))
+    hist_dir = tmp_path / "h"
+    monkeypatch.setattr(cycle, "HISTORY_DIR", str(hist_dir))
 
     await cycle.run_azul_cycle()
 
-    payload = json.load(open(hist_path, encoding="utf-8"))
+    payload = json.load(open(hist_dir / "CNF-GIG.json", encoding="utf-8"))
     assert [p for _d, p in payload["series"][f"CNF|GIG|{dep}"]] == [500.0, 400.0, 300.0]
-    assert "CNF|GIG" in payload["rotas"]
+    assert payload["rota"] is not None
 
 
 async def test_the_panels_route_summary_shares_the_baseline_the_verdicts_were_judged_against(
@@ -133,17 +133,17 @@ async def test_the_panels_route_summary_shares_the_baseline_the_verdicts_were_ju
         seen_at=seen,
     )
     _only_gig(_canned(price=300.0), monkeypatch)
-    deals_path, hist_path = tmp_path / "deals.json", tmp_path / "h.json"
+    deals_path, hist_dir = tmp_path / "deals.json", tmp_path / "h"
     monkeypatch.setattr(cycle, "DEALS_PATH", str(deals_path))
-    monkeypatch.setattr(cycle, "HISTORY_PATH", str(hist_path))
+    monkeypatch.setattr(cycle, "HISTORY_DIR", str(hist_dir))
 
     await cycle.run_azul_cycle()
 
-    rotas = json.load(open(hist_path, encoding="utf-8"))["rotas"]
+    rota = json.load(open(hist_dir / "CNF-GIG.json", encoding="utf-8"))["rota"]
     gig = next(d for d in json.load(open(deals_path, encoding="utf-8"))["deals"]
                if d["destino"] == "GIG" and d["data"] == dep)
-    assert rotas["CNF|GIG"]["med"] == 500.0          # not 400.0, today's fare stays out
-    assert gig["rota_med"] == rotas["CNF|GIG"]["med"]
+    assert rota["med"] == 500.0          # not 400.0, today's fare stays out
+    assert gig["rota_med"] == rota["med"]
     assert gig["rota_delta_pct"] == -40
 
 
