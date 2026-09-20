@@ -10,7 +10,7 @@ from airlines.google_flights import GoogleFlightsSearcher
 from alerts import evaluate, evaluate_threshold, evaluate_round_trip, round_trip_cache_key
 from config import (
     AZUL_HUB, GROUPS, PRICE_WATCHES, ROUND_TRIP_WATCHES,
-    WINDOW_MIN_DAYS, WINDOW_MAX_DAYS, BATCH_SIZE, CACHE_TTL_HOURS,
+    WINDOW_MIN_DAYS, WINDOW_MAX_DAYS, WINDOW_FAR_MAX_DAYS, BATCH_SIZE, CACHE_TTL_HOURS,
 )
 
 logger = logging.getLogger(__name__)
@@ -41,8 +41,9 @@ async def process_round_trips(rt_ida, rt_volta, watches, all_deals, ttl_hours) -
     return sent
 
 
-async def run_azul_cycle() -> None:
+async def run_azul_cycle(include_far: bool = False) -> None:
     today = date.today()
+    logger.info(f"ciclo {'longo (até 180 dias)' if include_far else 'curto (até 120 dias)'}")
     await cache.purge_expired()
     await history.init_db()
     await history.rollup_closed(today)
@@ -61,6 +62,7 @@ async def run_azul_cycle() -> None:
         dates = routing.target_dates(
             route.non_hub, today, GROUPS, WINDOW_MIN_DAYS, WINDOW_MAX_DAYS,
             PRICE_WATCHES, ROUND_TRIP_WATCHES,
+            far_max=WINDOW_FAR_MAX_DAYS if include_far else None,
         )
         try:
             flights = await _searcher.search_dates(

@@ -1,12 +1,19 @@
 import asyncio
 import logging
 import logging.handlers
+import os
 from pathlib import Path
+from typing import Mapping
 
 import sys
 
 import cache
 from cycle import EmptyCycleError, run_azul_cycle
+
+
+def far_dates_requested(env: Mapping[str, str]) -> bool:
+    """The workflow sets SEARCH_FAR_DATES=1 on the once-a-day far cycle and on manual runs."""
+    return env.get("SEARCH_FAR_DATES") == "1"
 
 
 def setup_logging() -> None:
@@ -32,7 +39,7 @@ async def main() -> None:
     log = logging.getLogger(__name__)
     await cache.init_db()
     try:
-        await run_azul_cycle()
+        await run_azul_cycle(include_far=far_dates_requested(os.environ))
     except EmptyCycleError as e:
         log.error(f"Passe falhou: {e}")
         sys.exit(1)   # red run on GitHub -> failure e-mail

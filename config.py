@@ -133,6 +133,10 @@ ROUND_TRIP_WATCHES: list[RoundTripWatch] = [
 WINDOW_MIN_DAYS: int = 30
 WINDOW_MAX_DAYS: int = 120
 
+# Far band: days WINDOW_MAX_DAYS+1 .. WINDOW_FAR_MAX_DAYS, searched once a day (the cycle the
+# workflow flags with SEARCH_FAR_DATES=1). Fares that far out move slowly.
+WINDOW_FAR_MAX_DAYS: int = 180
+
 BATCH_SIZE: int = 7          # concurrent Google Flights queries per batch
 CACHE_TTL_HOURS: int = 24    # dedup window
 
