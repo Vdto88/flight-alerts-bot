@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -6,7 +7,9 @@ import alerts
 import history
 from airlines.base import Flight
 from alerts import RoundTripAlert
-from config import AIRPORTS, AZUL_HUB, PriceWatch
+from config import AIRPORTS, AZUL_HUB, PriceWatch, WINDOW_MAX_DAYS
+
+logger = logging.getLogger(__name__)
 
 
 def place_fields(airport: str) -> dict:
@@ -64,6 +67,8 @@ def write_deals(deals: list[dict], path: str, generated_at: datetime | None = No
         "gerado_em": ts.strftime("%Y-%m-%dT%H:%M:%SZ"),
         # The panels print this window next to every delta; hard-coding it there went stale once.
         "hist_janela_dias": history.STATS_DAYS,
+        # The near band, for the panel's "atualizadas uma vez por dia" note on far dates.
+        "janela_perto_dias": WINDOW_MAX_DAYS,
         "aeroportos": {code: place_fields(code) for code in AIRPORTS},
         "deals": deals,
     }
@@ -154,17 +159,31 @@ def build_history_payload(route_stats: dict[str, dict], series: dict[str, list[l
 def write_history_files(payload: dict, out_dir: str) -> int:
     """Split the history payload into one file per route, `<ORIG>-<DEST>.json`, so the panel
     downloads only the route whose pass is open. Files left from a previous cycle (plain or
-    encrypted) are removed first so dropped routes do not linger. Returns the files written."""
+    encrypted) are removed first so dropped routes do not linger. Returns the files written.
+
+    The payload is parsed BEFORE anything is deleted: a Pages deploy is a full replacement, so
+    throwing halfway would publish an empty history/ and cost every route its charts. One bad
+    key costs its own series, exactly as history._split_key does for the database."""
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    for old in out.glob("*.json"):          # matches *.enc.json too
-        old.unlink()
 
     by_route: dict[str, dict] = {}
+    skipped = 0
     for key, points in payload["series"].items():
-        origem, destino, _data = key.split("|")
-        by_route.setdefault(f"{origem}|{destino}", {})[key] = points
+        parts = key.split("|")
+        if len(parts) != 3:
+            skipped += 1
+            continue
+        by_route.setdefault(f"{parts[0]}|{parts[1]}", {})[key] = points
+    if skipped:
+        logger.warning(f"histórico do painel: {skipped} chave(s) inválida(s) ignorada(s)")
+    if payload["series"] and not by_route:
+        logger.error("histórico do painel: nenhuma chave utilizável; "
+                     "os arquivos do ciclo anterior foram mantidos")
+        return 0
 
+    for old in out.glob("*.json"):          # matches *.enc.json too
+        old.unlink()
     for route, series in by_route.items():
         body = {"gerado_em": payload["gerado_em"], "rota": payload["rotas"].get(route), "series": series}
         with open(out / f"{route.replace('|', '-')}.json", "w", encoding="utf-8") as fh:

@@ -133,3 +133,22 @@ def test_files_of_routes_that_disappeared_are_removed(tmp_path):
     (out / "notes.txt").write_text("keep", encoding="utf-8")
     panel.write_history_files(_payload(), str(out))
     assert sorted(p.name for p in out.iterdir()) == ["CNF-SJK.json", "POA-CNF.json", "notes.txt"]
+
+
+def test_a_malformed_key_costs_only_itself_and_nothing_stale_survives(tmp_path):
+    out = tmp_path / "history"
+    out.mkdir()
+    (out / "CNF-OLD.json").write_text("{}", encoding="utf-8")
+    payload = _payload()
+    payload["series"]["quebrada"] = [["2026-09-02", 100.0]]
+    assert panel.write_history_files(payload, str(out)) == 2
+    assert sorted(p.name for p in out.iterdir()) == ["CNF-SJK.json", "POA-CNF.json"]
+
+
+def test_an_entirely_unusable_payload_leaves_the_previous_files_alone(tmp_path):
+    out = tmp_path / "history"
+    out.mkdir()
+    (out / "CNF-SJK.json").write_text('{"ontem": true}', encoding="utf-8")
+    payload = panel.build_history_payload(_route(), {"quebrada": [["2026-09-02", 100.0]]})
+    assert panel.write_history_files(payload, str(out)) == 0
+    assert (out / "CNF-SJK.json").read_text(encoding="utf-8") == '{"ontem": true}'
