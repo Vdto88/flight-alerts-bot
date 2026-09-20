@@ -2,7 +2,7 @@ import json
 import pytest
 from cryptography.exceptions import InvalidTag
 
-from scripts.encrypt_deals import encrypt_file, decrypt, encrypt_bytes, decrypt_bytes
+from scripts.encrypt_deals import encrypt_file, decrypt, encrypt_bytes, decrypt_bytes, main
 
 
 def test_encrypt_then_decrypt_roundtrip(tmp_path):
@@ -44,3 +44,34 @@ def test_v1_payloads_written_before_compression_still_decrypt():
     v1 = encrypt_bytes(b'{"deals":[]}', "s", compress=False)
     assert v1["v"] == 1 and "enc" not in v1
     assert decrypt_bytes(v1, "s") == b'{"deals":[]}'
+
+
+def test_cli_encrypts_deals_and_every_history_file_and_removes_the_plaintext(tmp_path):
+    (tmp_path / "deals.json").write_text('{"deals":[{"preco":1}]}', encoding="utf-8")
+    hist = tmp_path / "history"
+    hist.mkdir()
+    (hist / "CNF-GIG.json").write_text('{"rota":null,"series":{}}', encoding="utf-8")
+    (hist / "GIG-CNF.json").write_text('{"rota":null,"series":{"k":[]}}', encoding="utf-8")
+
+    assert main("segredo", root=str(tmp_path)) == 2
+
+    assert sorted(p.name for p in hist.iterdir()) == ["CNF-GIG.enc.json", "GIG-CNF.enc.json"]
+    payload = json.loads((hist / "GIG-CNF.enc.json").read_text(encoding="utf-8"))
+    assert payload["v"] == 2 and json.loads(decrypt_bytes(payload, "segredo"))["series"] == {"k": []}
+    assert (tmp_path / "deals.enc.json").exists()
+    assert (tmp_path / "deals.json").exists()          # the workflow's snapshot check still reads it
+
+
+def test_cli_without_a_history_directory_encrypts_only_the_deals(tmp_path):
+    (tmp_path / "deals.json").write_text('{"deals":[]}', encoding="utf-8")
+    assert main("segredo", root=str(tmp_path)) == 0
+    assert (tmp_path / "deals.enc.json").exists()
+
+
+def test_cli_does_not_re_encrypt_already_encrypted_files(tmp_path):
+    (tmp_path / "deals.json").write_text('{"deals":[]}', encoding="utf-8")
+    hist = tmp_path / "history"
+    hist.mkdir()
+    (hist / "CNF-GIG.enc.json").write_text('{"v":2}', encoding="utf-8")
+    assert main("segredo", root=str(tmp_path)) == 0
+    assert (hist / "CNF-GIG.enc.json").read_text(encoding="utf-8") == '{"v":2}'

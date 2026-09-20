@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 _searcher = GoogleFlightsSearcher()
 DEALS_PATH = "deals.json"
-HISTORY_PATH = "history.json"
+HISTORY_DIR = "history"
 FAILURE_ALERT_RATIO = 0.5
 
 
@@ -149,9 +149,9 @@ async def run_azul_cycle(include_far: bool = False) -> None:
         # The route summary is the same pre-record baseline the verdicts were computed against,
         # so the panel cannot contradict itself; only the series are re-read after recording,
         # so the charts end on today's point.
-        panel.write_history(
+        panel.write_history_files(
             panel.build_history_payload(route_stats, await history.all_series()),
-            HISTORY_PATH,
+            HISTORY_DIR,
         )
     except Exception as e:
         logger.error(f"histórico do painel não gravado: {e}")

@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timezone
+from pathlib import Path
 
 import alerts
 import history
@@ -150,7 +151,22 @@ def build_history_payload(route_stats: dict[str, dict], series: dict[str, list[l
     return {"gerado_em": ts.strftime("%Y-%m-%dT%H:%M:%SZ"), "rotas": route_stats, "series": series}
 
 
-def write_history(payload: dict, path: str) -> str:
-    with open(path, "w", encoding="utf-8") as fh:
-        json.dump(payload, fh, ensure_ascii=False)
-    return path
+def write_history_files(payload: dict, out_dir: str) -> int:
+    """Split the history payload into one file per route, `<ORIG>-<DEST>.json`, so the panel
+    downloads only the route whose pass is open. Files left from a previous cycle (plain or
+    encrypted) are removed first so dropped routes do not linger. Returns the files written."""
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    for old in out.glob("*.json"):          # matches *.enc.json too
+        old.unlink()
+
+    by_route: dict[str, dict] = {}
+    for key, points in payload["series"].items():
+        origem, destino, _data = key.split("|")
+        by_route.setdefault(f"{origem}|{destino}", {})[key] = points
+
+    for route, series in by_route.items():
+        body = {"gerado_em": payload["gerado_em"], "rota": payload["rotas"].get(route), "series": series}
+        with open(out / f"{route.replace('|', '-')}.json", "w", encoding="utf-8") as fh:
+            json.dump(body, fh, ensure_ascii=False)
+    return len(by_route)

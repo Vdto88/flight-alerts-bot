@@ -2,6 +2,7 @@ import base64
 import gzip
 import json
 import os
+from pathlib import Path
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -54,8 +55,21 @@ def encrypt_file(in_path: str, out_path: str, password: str) -> str:
     return out_path
 
 
+def main(password: str, root: str = ".") -> int:
+    """Encrypt the snapshot and every per-route history file under `root`. History plaintext
+    is removed once encrypted (nothing unencrypted may be published); deals.json stays because
+    the workflow's snapshot check reads it. Returns the history files encrypted."""
+    base = Path(root)
+    encrypt_file(str(base / "deals.json"), str(base / "deals.enc.json"), password)
+    count = 0
+    for plain in sorted((base / "history").glob("*.json")):
+        if plain.name.endswith(".enc.json"):
+            continue
+        encrypt_file(str(plain), str(plain.with_name(plain.stem + ".enc.json")), password)
+        plain.unlink()
+        count += 1
+    return count
+
+
 if __name__ == "__main__":
-    password = os.environ["PANEL_PASSWORD"]
-    encrypt_file("deals.json", "deals.enc.json", password)
-    if os.path.exists("history.json"):
-        encrypt_file("history.json", "history.enc.json", password)
+    main(os.environ["PANEL_PASSWORD"])
