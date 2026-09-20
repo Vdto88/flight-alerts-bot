@@ -2,6 +2,7 @@ import logging
 from datetime import date
 
 import cache
+import far_cache
 import history
 import panel
 import telegram_bot
@@ -126,8 +127,20 @@ async def run_azul_cycle(include_far: bool = False) -> None:
         rt_ida, rt_volta, ROUND_TRIP_WATCHES, all_deals, CACHE_TTL_HOURS
     )
 
+    # Only what this cycle searched is recorded. Far-band records carried from the last far
+    # cycle were recorded by the cycle that found them, and they are appended after every
+    # alert has been evaluated, so they can never fire or re-fire one.
+    searched = list(all_deals)
+    if include_far:
+        kept = far_cache.save(all_deals, today, WINDOW_MAX_DAYS)
+        logger.info(f"datas distantes: {kept} registros guardados para os ciclos curtos")
+    else:
+        carried = far_cache.load_carried(all_deals, today, WINDOW_MAX_DAYS)
+        all_deals.extend(carried)
+        logger.info(f"datas distantes: {len(carried)} registros reaproveitados do ciclo longo")
+
     enriched = panel.enrich_with_history(all_deals, stats, route_stats)
-    await history.record(all_deals)
+    await history.record(searched)
 
     panel.write_deals(all_deals, DEALS_PATH)
     try:
