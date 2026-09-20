@@ -60,6 +60,19 @@ const fmtFound = (date) => date.toLocaleString("pt-BR", {
 let PASSWORD = "";
 const loadDeals = (password) => PanelCrypto.load("deals.enc.json", password);
 
+/* History is only needed once a pass is opened: fetch it once, share the promise. */
+let HISTORY = null;          // resolved payload, or false when it could not be loaded
+let historyPromise = null;
+function ensureHistory() {
+  if (!historyPromise) {
+    historyPromise = PanelCrypto.load("history.enc.json", PASSWORD)
+      .then((h) => { HISTORY = h; })
+      .catch(() => { HISTORY = false; })
+      .then(render);
+  }
+  return historyPromise;
+}
+
 /* ---------------- Small pieces of markup ---------------- */
 function icon(name, cls = "") {
   return `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-${name}"/></svg>`;
@@ -334,6 +347,77 @@ function iata(code, extra = "") {
   return `<span class="iata"><b>${esc(code)}</b><small>${esc(extra || cityOf(code))}</small></span>`;
 }
 
+const LEAD_LABELS = ["0–7 d", "8–14 d", "15–30 d", "31–60 d", "61–90 d", "91–120 d", "121–180 d"];
+const DOW_LABELS = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"];   // Python weekday(): Monday = 0
+const MIN_CLOSED_DATES = 20, MIN_LEAD_BUCKETS = 4;
+
+/* Daily series of one flight date: line, median rule, floor rule, today's point. */
+function dateChart(d) {
+  const points = HISTORY.series[`${d.origem}|${d.destino}|${d.data}`];
+  if (!points || points.length < 2) return `<p class="hist-note">Ainda sem série suficiente para esta data.</p>`;
+  const prices = points.map(([, p]) => p);
+  const w = 560, h = 160, padL = 46, padR = 12, padT = 12, padB = 22;
+  const lo = Math.min(...prices), hi = Math.max(...prices), span = hi - lo || 1;
+  const x = (i) => padL + (i / (points.length - 1)) * (w - padL - padR);
+  const y = (v) => padT + (1 - (v - lo) / span) * (h - padT - padB);
+  const path = prices.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(" ");
+  const med = d.hist_med, rule = (v, cls, label) => (v == null || v < lo || v > hi) ? "" :
+    `<line class="${cls}" x1="${padL}" x2="${w - padR}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/>
+     <text class="rule-label" x="${w - padR}" y="${(y(v) - 4).toFixed(1)}" text-anchor="end">${label} ${fmtBRL(v)}</text>`;
+  const last = points.length - 1;
+  return `<figure class="hist-chart">
+    <figcaption>Preço desta data · ${points.length} dias observados</figcaption>
+    <svg viewBox="0 0 ${w} ${h}" role="img"
+      aria-label="Preço de ${fmtDate(d.data)} ao longo de ${points.length} dias: de ${fmtBRL(prices[0])} a ${fmtBRL(prices[last])}, mínimo ${fmtBRL(lo)}, máximo ${fmtBRL(hi)}">
+      <text class="axis" x="${padL - 6}" y="${y(hi) + 4}" text-anchor="end">${fmtInt(hi)}</text>
+      <text class="axis" x="${padL - 6}" y="${y(lo) + 4}" text-anchor="end">${fmtInt(lo)}</text>
+      <text class="axis" x="${padL}" y="${h - 4}">${fmtShort(points[0][0])}</text>
+      <text class="axis" x="${w - padR}" y="${h - 4}" text-anchor="end">${fmtShort(points[last][0])}</text>
+      ${rule(med, "rule-med", "mediana")}
+      <path class="series" d="${path}"/>
+      <circle class="today" cx="${x(last).toFixed(1)}" cy="${y(prices[last]).toFixed(1)}" r="4"/>
+    </svg></figure>`;
+}
+
+function barRows(entries, fmtKey) {
+  if (!entries.length) return "";
+  const max = Math.max(...entries.map(([, v]) => v));
+  const min = Math.min(...entries.map(([, v]) => v));
+  return entries.map(([k, v]) => `<div class="bar-row${v === min ? " is-low" : ""}">
+    <span class="bar-key">${esc(fmtKey(k))}</span>
+    <span class="bar-track"><span class="bar-fill" style="width:${Math.round((v / max) * 100)}%"></span></span>
+    <span class="bar-val num">${fmtBRL(v)}</span></div>`).join("");
+}
+
+/* What the route usually costs, and (once enough flights have departed) when to buy. */
+function routeSection(d) {
+  const r = HISTORY.rotas[`${d.origem}|${d.destino}`];
+  if (!r) return "";
+  const months = Object.entries(r.by_month).sort(([a], [b]) => a.localeCompare(b));
+  const dows = Object.entries(r.by_dow).sort(([a], [b]) => Number(a) - Number(b));
+  const lead = r.lead_curve || [];
+  const enough = r.n_closed >= MIN_CLOSED_DATES && lead.length >= MIN_LEAD_BUCKETS;
+  return `<section class="hist-route" aria-label="Histórico da rota">
+    <h3>Rota ${esc(d.origem)} → ${esc(d.destino)}</h3>
+    <p class="hist-facts"><span>Preço típico <b class="num">${fmtBRL(r.med)}</b></span>
+      <span>Piso já visto <b class="num">${fmtBRL(r.min)}</b></span>
+      <span>${fmtInt(r.n_dates)} datas acompanhadas</span></p>
+    <div class="hist-cols">
+      <div><h4>Por mês do voo</h4>${barRows(months, (m) => MON[Number(m) - 1])}</div>
+      <div><h4>Por dia da semana</h4>${barRows(dows, (k) => DOW_LABELS[Number(k)])}</div>
+      <div><h4>Quando comprar</h4>${enough
+        ? barRows(lead.map((b) => [b.bucket, b.med]), (k) => LEAD_LABELS[Number(k)])
+        : `<p class="hist-note">Coletando dados — disponível após algumas semanas de voos encerrados (${fmtInt(r.n_closed)} de ${MIN_CLOSED_DATES}).</p>`}</div>
+    </div></section>`;
+}
+
+function historyBlock(g) {
+  if (g.rt) return "";
+  if (HISTORY === null) return `<p class="hist-note">Carregando histórico…</p>`;
+  if (HISTORY === false) return `<p class="hist-note">Histórico indisponível agora. Calendário e tabela seguem funcionando.</p>`;
+  return dateChart(g.best) + routeSection(g.best);
+}
+
 function passHTML(g, i) {
   const d = g.best;
   const open = OPEN.has(g.key);
@@ -361,14 +445,16 @@ function passHTML(g, i) {
       <span class="pass-stub">
         <span><span class="fare-label">Tarifa${g.rt ? " total" : ""}</span>
           <span class="fare"><small>R$</small>${fmtInt(d.preco)}</span></span>
-        ${delta(d) || (g.rt ? "" : '<span class="delta flat">sem histórico</span>')}
+        ${delta(d) || (g.rt ? "" : d.rota_delta_pct != null
+          ? `<span class="delta ${d.rota_delta_pct < -3 ? "down" : d.rota_delta_pct > 3 ? "up" : "flat"}" title="Comparado ao preço típico da rota, ${fmtBRL(d.rota_med)}">${Math.abs(d.rota_delta_pct)}% ${d.rota_delta_pct < 0 ? "abaixo" : "acima"} da rota</span>`
+          : '<span class="delta flat">sem histórico</span>')}
       </span>
     </button>
     <div class="pass-foot">
       ${spark(d) || `<span class="kicker">${esc(placeOf(d))}</span>`}
       <span class="pass-toggle">${open ? "Fechar" : g.rt ? "Ver trechos" : "Ver calendário"} ${icon("chevron", "chevron")}</span>
     </div>
-    ${open ? `<div class="pass-body">${g.rt ? roundTripBody(d) : calendar(g) + datesTable(g)}</div>` : ""}
+    ${open ? `<div class="pass-body">${g.rt ? roundTripBody(d) : historyBlock(g) + calendar(g) + datesTable(g)}</div>` : ""}
   </article>`;
 }
 
@@ -393,6 +479,8 @@ function tableRowHTML(d) {
     ${cell("Cia", `${cia}${isRT(d) ? "" : ` <span class="muted">· ${d.direto ? "direto" : d.paradas + " parada(s)"}</span>`}`)}
     ${cell("Tarifa", `<span class="num">${fmtBRL(d.preco)}</span>`)}
     ${cell("vs. média", delta(d) || '<span class="muted">sem histórico</span>')}
+    ${cell("vs. rota", d.rota_delta_pct == null ? '<span class="muted">—</span>'
+      : `<span class="delta ${d.rota_delta_pct < -3 ? "down" : d.rota_delta_pct > 3 ? "up" : "flat"}" title="Preço típico da rota: ${fmtBRL(d.rota_med)}">${d.rota_delta_pct > 0 ? "+" : ""}${d.rota_delta_pct}%</span>`)}
     ${cell("Sinal", badges(d) || "—")}
     ${cell("", link)}
   </tr>`;
@@ -528,6 +616,7 @@ function setup(data) {
     if (!head) return;
     const key = head.closest(".pass").querySelector(".pass-top").dataset.key;
     OPEN.has(key) ? OPEN.delete(key) : OPEN.add(key);
+    if (OPEN.size) ensureHistory();
     render();
   });
 

@@ -612,3 +612,23 @@ table#table { width: 100%; border-collapse: collapse; font-size: .8125rem; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0ms !important; transition-duration: .01ms !important; }
 }
+
+/* ---------- History: date chart + route summary ---------- */
+.hist-chart { margin: 0 0 1.25rem; }
+.hist-chart figcaption, .hist-route h4 { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); margin-bottom: .4rem; }
+.hist-chart svg { width: 100%; height: auto; display: block; }
+.hist-chart .series { fill: none; stroke: var(--amber); stroke-width: 2; stroke-linejoin: round; }
+.hist-chart .today { fill: var(--amber); }
+.hist-chart .rule-med { stroke: var(--text-3); stroke-dasharray: 4 4; stroke-width: 1; }
+.hist-chart .axis, .hist-chart .rule-label { fill: var(--text-3); font-size: 10px; font-family: inherit; }
+.hist-route { margin-bottom: 1.25rem; }
+.hist-route h3 { font-size: .95rem; margin: 0 0 .35rem; }
+.hist-facts { display: flex; flex-wrap: wrap; gap: .35rem 1.25rem; margin: 0 0 .9rem; color: var(--text-3); font-size: .85rem; }
+.hist-facts b { color: var(--cream); font-weight: 600; }
+.hist-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 1rem 1.5rem; }
+.bar-row { display: grid; grid-template-columns: 4.2rem 1fr auto; align-items: center; gap: .5rem; font-size: .8rem; padding: .12rem 0; }
+.bar-track { height: .45rem; border-radius: 99px; background: var(--line); overflow: hidden; }
+.bar-fill { display: block; height: 100%; background: var(--text-2); border-radius: inherit; }
+.bar-row.is-low .bar-fill { background: var(--green); }
+.bar-row.is-low .bar-val { color: var(--green); }
+.hist-note { color: var(--text-3); font-size: .85rem; margin: 0 0 1rem; }
