@@ -46,6 +46,15 @@ def _format_brl(value: float) -> str:
     return f"R$ {value:_.2f}".replace("_", "X").replace(".", ",").replace("X", ".")
 
 
+_MD_SPECIALS = str.maketrans({c: "\\" + c for c in "_*`["})
+
+
+def _md(text: str) -> str:
+    """Escape free text for Telegram's legacy Markdown. Airline names come from Google; one
+    stray '_' or '*' opens an entity that never closes and the whole message gets a 400."""
+    return text.translate(_MD_SPECIALS)
+
+
 def _stops_label(flight: Flight) -> str:
     if flight.is_direct or flight.stops == 0:
         return "Direto"
@@ -80,7 +89,7 @@ def format_azul_alert(flight: Flight, comparison: AzulComparison,
         f"🔵 *AZUL É A MAIS BARATA*\n\n"
         f"🛫 {flight.origin} → {flight.destination}\n"
         f"💰 {_format_brl(flight.price)}  (Azul)\n"
-        f"📊 vs {_format_brl(comparison.competitor_price)} ({comparison.competitor}) "
+        f"📊 vs {_format_brl(comparison.competitor_price)} ({_md(comparison.competitor)}) "
         f"— economia de {_format_brl(comparison.savings)}\n"
         f"{format_context_line(context)}"
         f"📅 {dep_date} • {flight.departure_time} → {flight.arrival_time}\n"
@@ -145,7 +154,7 @@ def format_price_alert(flight: Flight, max_price: float,
         f"🎯 abaixo do seu limite de {_format_brl(max_price)}\n"
         f"{format_context_line(context)}"
         f"📅 {dep_date} • {flight.departure_time} → {flight.arrival_time}\n"
-        f"🏢 {flight.airline} • {_stops_label(flight)}\n"
+        f"🏢 {_md(flight.airline)} • {_stops_label(flight)}\n"
         f"🔗 [Reservar agora]({flight.booking_url})\n\n"
         f"⏰ Detectado às {now_str}"
     )
@@ -199,9 +208,9 @@ def format_round_trip_alert(rt: RoundTripAlert) -> str:
     return (
         f"🌍 *IDA+VOLTA {rt.watch_name.upper()} < {_format_brl(rt.max_total)}*\n\n"
         f"🛫 Ida:   {rt.ida.origin} → {rt.ida.destination} · {ida_d} · "
-        f"{rt.ida.airline} · {_format_brl(rt.ida.price)}\n"
+        f"{_md(rt.ida.airline)} · {_format_brl(rt.ida.price)}\n"
         f"🛬 Volta: {rt.volta.origin} → {rt.volta.destination} · {volta_d} · "
-        f"{rt.volta.airline} · {_format_brl(rt.volta.price)}\n"
+        f"{_md(rt.volta.airline)} · {_format_brl(rt.volta.price)}\n"
         f"🧳 Estadia: {rt.stay_days} dias\n"
         f"💰 Total: {_format_brl(rt.total)}  (teto {_format_brl(rt.max_total)})\n"
         f"🔗 [Reservar ida]({rt.ida.booking_url}) · [Reservar volta]({rt.volta.booking_url})\n\n"
