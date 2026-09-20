@@ -40,7 +40,9 @@ jobs:
             azul-dedup-
 
       - name: Restore history from release when the cache is cold
+        id: restore_history
         if: hashFiles('data/cache.db') == ''
+        continue-on-error: true
         env:
           PANEL_PASSWORD: ${{ secrets.PANEL_PASSWORD }}
           GH_TOKEN: ${{ github.token }}
@@ -53,6 +55,7 @@ jobs:
         run: python main.py
 
       - name: Back up history to the release
+        id: backup_history
         continue-on-error: true
         env:
           PANEL_PASSWORD: ${{ secrets.PANEL_PASSWORD }}
