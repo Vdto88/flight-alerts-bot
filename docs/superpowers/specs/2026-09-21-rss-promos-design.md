@@ -75,8 +75,10 @@ class Classification:
     programs: tuple[str, ...]     # display labels, e.g. ("Livelo", "Smiles")
     from_bh: bool
     origin_unknown: bool          # fare posts only
-    reason: str                   # which rule accepted it; logged
 ```
+
+`classify(item)` returns `(Classification | None, reason)`: the reason is reported for rejected
+items too, so it travels beside the classification rather than inside it.
 
 ## 2. One cycle (`promos_main.py`)
 
@@ -99,8 +101,8 @@ the first run would post ~40 old items.
 
 **Send failures.** If Telegram rejects a message the guid is not marked seen and a per-guid
 attempt counter is incremented; after 3 attempts it is marked seen with an error log. The item
-is in the panel list regardless. `RetryAfter` (429) is honoured the way `telegram_bot` already
-does.
+is in the panel list regardless. On `RetryAfter` (429) `notify` waits the time Telegram asks for,
+capped at 30 s, and retries once (`telegram_bot` has no flood handling to reuse).
 
 **Topics not configured.** While `PROMO_TOPIC_FARES` / `PROMO_TOPIC_MILES` are `None`, items
 of that kind are classified, recorded and marked seen, nothing is sent, and the log says so.
@@ -115,7 +117,8 @@ recovers).
 
 Text = title + " " + summary, lowercased, accents stripped, matched on word boundaries
 ("cnf" must not match inside another word; "roma" must not match "aroma"). Config terms are
-normalised the same way at match time, so they are written naturally in `config.py`.
+normalised the same way at match time, so they are written naturally in `config.py`; the miles
+signals are regular expressions and are written already lowercase and unaccented.
 
 **Step 1 — miles.** Accept as `miles` when both hold:
 - a promotion signal from `PROMO_MILES_SIGNALS`: transfer bonus ("bônus" with "transferência" /
@@ -129,28 +132,31 @@ Hotel programmes and foreign programmes alone do not qualify. "Livelo com 100% d
 Flying Blue" passes because of Livelo. `programs` lists every programme matched. If the text
 also cites a configured destination, `destinations` is filled too.
 
-**Step 2 — fare.** Otherwise, require an offer signal: an `R$` price, or a fare word
-("passagem/passagens", "voo/voos", "tarifa", "ida e volta", "trecho") together with an offer
-word ("a partir de", "promoção", "oferta", "desconto", "barato/baratas"). Then, in order:
+**Step 2 — fare.** Otherwise, require a fare word ("passagem/passagens", "voo/voos", "tarifa",
+"ida e volta", "trecho") **and** an offer signal: an `R$` price or an offer word ("promoção",
+"oferta", "desconto", "barato/baratas", "tarifa erro"). The fare word is always required, or
+"hotéis a partir de R$ 300" would pass; "a partir de" alone is not an offer signal, or the news
+"voos … a partir de 2027" would pass. Then, in order:
 
 1. Cites BH / Belo Horizonte / Confins / CNF / Minas Gerais → accept, `from_bh=True`.
 2. Cites a configured destination → accept with `destinations`. Destination terms are the city
    names in `config.AIRPORTS` plus `PROMO_DESTINATION_ALIASES` (e.g. "Itália", "Portugal",
    "Espanha", "França", "Europa", "Patagônia", "Foz", "Floripa", "Rio").
 3. Generic (`PROMO_GENERIC_TERMS`: "nacionais", "internacionais", "várias cidades",
-   "todo o brasil", …) or no place recognised at all → accept, `origin_unknown=True`.
+   "todo o brasil", …) → accept, `origin_unknown=True`, even when other cities are listed.
 4. Only places outside the config → reject. Recognising "a place outside the config" needs a
    list: `PROMO_OTHER_PLACES`, common sale destinations and origins that are not configured
    (Miami, Orlando, Nova York, Buenos Aires, Cancún, Londres, Salvador, Recife, Fortaleza,
-   Brasília, …). A post citing a place missing from both lists falls into rule 3 and passes as
-   origin unknown — the tolerant side, consistent with decision 1. The list grows from the
+   Brasília, …). Place names are matched longest first, so "Porto Seguro" is never "Porto".
+5. No place recognised at all → accept, `origin_unknown=True`. A post citing a place missing
+   from both lists lands here and passes as origin unknown — the tolerant side, consistent with decision 1. The list grows from the
    classification log.
 
 Rules 1 and 2 can both apply; `origin_unknown` is set whenever `from_bh` is false.
 
 An item matching both steps is `miles`. One item, one message.
 
-`reason` names the rule and the matched term (`"fare:destination:roma"`, `"miles:bonus+livelo"`,
+The reason names the rule and the matched term (`"fare:destination:Roma"`, `"miles:Livelo"`,
 `"rejected:no-offer-signal"`); every decision is logged at INFO so a wrong verdict can be traced
 to a word.
 
