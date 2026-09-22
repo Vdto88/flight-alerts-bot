@@ -155,8 +155,8 @@ PROMO_FEEDS: list[tuple[str, str]] = [
     ("Passageiro de Primeira", "https://passageirodeprimeira.com/feed/"),
 ]
 
-PROMO_TOPIC_FARES: int | None = None    # forum topic "Promoções de passagens"; None = send nothing
-PROMO_TOPIC_MILES: int | None = None    # forum topic "Milhas e pontos"; None = send nothing
+PROMO_TOPIC_FARES: int | None = 66349   # forum topic "Promoções de passagens"; None = send nothing
+PROMO_TOPIC_MILES: int | None = 66351   # forum topic "Milhas e pontos"; None = send nothing
 PROMO_MAX_MESSAGES_PER_CYCLE: int = 10
 PROMO_SEED_MAX_AGE_HOURS: int = 6       # with no state yet, older posts are recorded, not sent
 
