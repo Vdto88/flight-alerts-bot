@@ -91,12 +91,19 @@ function pairReturn(ida, stay, index, estadias)
 - Each paired card shows the total as its big price, a line "ida R$ 340 + volta R$ 380", and a
   return line "↩️ Volta 19/11 · 5 dias · Gol · R$ 380" whose link opens the return's
   `url_compra`. The outbound link stays where it is.
-- Unpaired cards stay visible, dimmed, with "estadia de 5 dias não vale para Europa (13–16)"
-  (label from the record's `pais`/region and `validas`) or "volta fora da janela". They sort
-  after every paired card and are ignored by the price filter and the highlights board.
+- In a pass (one card per destination), dates without a return drop out of the pass. A pass
+  left with no paired date stays visible, dimmed, with "Estadia de 5 dias não vale para Portugal
+  (13–16 dias)" (the country, or "destinos nacionais" for Brazil) or "Volta fora da janela
+  buscada". It sorts after every paired pass and is ignored by the price filter and the
+  highlights board.
+- With the price slider at its maximum there is no price limit (totals can exceed the one-way
+  maximum the slider is sized for).
+- The return line sits between the pass's button and its foot (a link cannot live inside the
+  pass `<button>`).
 - Price filter ("Até R$"), price sort, the "Em destaque agora" board and the counters use the
   total for paired cards.
-- The table view gains two columns, "Volta" (date · airline) and "Total".
+- The table view gains one column, "Volta" (date · airline · price · stay), shown only with a
+  stay chosen; "Tarifa" shows the total with the outbound price beside it.
 - Signal badges (Azul mais barata, alerta de preço) keep describing the outbound leg.
 
 **Mobile (375 px).** The selector is a `<select>` like the other filters; the return line
@@ -119,7 +126,7 @@ Browser (no JS test runner): encrypted fixture in `_site/`, `python -m http.serv
 1. "Só ida" renders the same cards as before (returns and round-trip records present).
 2. Stay 5: only outbounds; a GIG card shows the return on `data + 5`, total = sum, sorted by
    total.
-3. Stay 5 on a Lisbon card: "não vale para Europa (13–16)", dimmed, after the paired cards.
+3. Stay 5 on a Lisbon card: "não vale para Portugal (13–16 dias)", dimmed, after the paired cards.
 4. "Melhor": Lisbon picks the cheapest of 13–16, Bariloche of 7–10, GIG of 4–7.
 5. An outbound without a return in the fixture: "volta fora da janela".
 6. "Até R$" and the highlights board use the total.
