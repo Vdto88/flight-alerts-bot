@@ -95,6 +95,17 @@ function viewDeals() {
   return rows;
 }
 
+/* Why an outbound fare has no return in the chosen stay. */
+function unpairedText(d) {
+  if (d.sem_par === "out-of-window") return "Volta fora da janela buscada";
+  const where = d.pais === "Brasil" ? "destinos nacionais" : d.pais;
+  return `Estadia de ${STAY} dias não vale para ${where} (${d.validas[0]}–${d.validas[d.validas.length - 1]} dias)`;
+}
+
+/* The return leg, as a link to buy it. */
+const returnLink = (d) =>
+  `<a href="${esc(d.par_volta.url_compra)}" target="_blank" rel="noopener">${fmtShort(d.par_volta.data)} · ${esc(d.par_volta.cia)} · ${fmtBRL(d.par_volta.preco)}</a>`;
+
 /* ---------------- Formatting ---------------- */
 const fmtInt = (n) => Math.round(n).toLocaleString("pt-BR");
 const fmtBRL = (n) => "R$ " + fmtInt(n);
@@ -249,15 +260,16 @@ function rotaDelta(d, signed = false) {
 /* Daily-minimum sparkline that ends on today's fare, coloured like the delta. */
 function spark(d) {
   if (!d.spark || d.spark.length < 2) return "";
-  const values = d.spark.concat(d.preco);
+  const today = d.preco_ida ?? d.preco;   // a paired pass shows a total; the series is the outbound leg's
+  const values = d.spark.concat(today);
   const w = 96, h = 26, lo = Math.min(...values), hi = Math.max(...values), span = hi - lo || 1;
   const x = (i) => (i / (values.length - 1)) * w;
   const y = (v) => h - ((v - lo) / span) * (h - 6) - 3;
   const path = values.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(" ");
   const trend = d.delta_pct <= -3 ? "down" : d.delta_pct >= 3 ? "up" : "";
   return `<svg class="spark ${trend}" viewBox="0 0 ${w} ${h}" role="img"
-    aria-label="Preço nos últimos ${d.spark.length} dias, de ${fmtBRL(values[0])} até ${fmtBRL(d.preco)} hoje">
-    <path d="${path}"/><circle cx="${w}" cy="${y(d.preco).toFixed(1)}" r="3"/></svg>`;
+    aria-label="Preço nos últimos ${d.spark.length} dias, de ${fmtBRL(values[0])} até ${fmtBRL(today)} hoje">
+    <path d="${path}"/><circle cx="${w}" cy="${y(today).toFixed(1)}" r="3"/></svg>`;
 }
 
 /* ---------------- Filtering ---------------- */
@@ -464,7 +476,7 @@ function calendar(g) {
       const t = tier(d.preco);
       const best = d === g.best ? " best" : "";
       cells.push(`<a class="day t${t}${best}" href="${esc(d.url_compra)}" target="_blank" rel="noopener"
-        title="${fmtDate(iso)} · ${fmtBRL(d.preco)} · ${TIER_WORD[t]}${best ? " · melhor preço" : ""} · ${esc(d.cia)}${d.visto_em ? " · " + ageOf(d.visto_em) : ""}">
+        title="${fmtDate(iso)} · ${fmtBRL(d.preco)} · ${TIER_WORD[t]}${best ? " · melhor preço" : ""} · ${esc(d.cia)}${d.par_volta ? ` · volta ${fmtShort(d.par_volta.data)} ${fmtBRL(d.par_volta.preco)}` : ""}${d.visto_em ? " · " + ageOf(d.visto_em) : ""}">
         <span class="d">${day}</span><span class="p">${Math.round(d.preco / 10) * 10}</span></a>`);
     }
     return `<div class="month"><h3>${fmtMonth(ym)}</h3>
@@ -477,7 +489,7 @@ function calendar(g) {
     <span><i style="background:#1f3a1d"></i>barato</span>
     <span><i style="background:#3a2c0b"></i>médio</span>
     <span><i style="background:#3d1b15"></i>caro</span>
-    <span>Contorno âmbar = melhor dia. Toque no dia para comprar.</span></p>`;
+    <span>${g.best.par_volta ? "Valores = ida + volta. " : ""}Contorno âmbar = melhor dia. Toque no dia para comprar.</span></p>`;
 }
 
 function roundTripBody(d) {
@@ -492,13 +504,15 @@ function roundTripBody(d) {
 }
 
 function datesTable(g) {
+  const paired = !!g.best.par_volta;
   const rows = g.deals.map((d) => `<tr>
     <td class="num">${fmtDate(d.data)}</td>
     <td>${esc(d.cia)}</td>
     <td>${d.direto ? "direto" : `${d.paradas} parada(s)`}</td>
+    ${paired ? `<td class="num">${returnLink(d)} <span class="muted">· ${d.par_estadia} d</span></td>` : ""}
     <td class="num"><a class="buy" href="${esc(d.url_compra)}" target="_blank" rel="noopener">${fmtBRL(d.preco)}</a></td>
   </tr>`).join("");
-  return `<table class="dates"><tr><th>Data</th><th>Cia</th><th>Voo</th><th>Tarifa</th></tr>${rows}</table>`;
+  return `<table class="dates"><tr><th>Data</th><th>Cia</th><th>Voo</th>${paired ? "<th>Volta</th>" : ""}<th>${paired ? "Total" : "Tarifa"}</th></tr>${rows}</table>`;
 }
 
 function iata(code, extra = "") {
@@ -605,9 +619,15 @@ function passHTML(g, i) {
 
   const meta = g.rt
     ? [["Ida", fmtShort(d.data_ida)], ["Volta", fmtShort(d.data_volta)], ["Estadia", `${d.estadia} dias`]]
-    : [["Melhor dia", fmtShort(d.data)], ["Cia", d.cia], ["Datas", g.deals.length]];
+    : d.par_volta
+      ? [["Ida", fmtShort(d.data)], ["Volta", fmtShort(d.par_volta.data)], ["Estadia", `${d.par_estadia} dias`]]
+      : [["Melhor dia", fmtShort(d.data)], ["Cia", d.cia], ["Datas", g.deals.length]];
+  // Between the pass's button and its foot: a link cannot live inside the <button>.
+  const returnLine = d.par_volta
+    ? `<div class="pass-return">↩️ Volta ${returnLink(d)} <span>· ${d.par_estadia} dias</span></div>`
+    : g.unpaired ? `<div class="pass-return is-missing">${esc(unpairedText(g.unpaired))}</div>` : "";
 
-  return `<article class="pass ${g.alert ? "is-alert" : ""} ${open ? "open" : ""}" style="--i:${Math.min(i, 12)}">
+  return `<article class="pass ${g.alert ? "is-alert" : ""} ${open ? "open" : ""} ${g.unpaired ? "is-unpaired" : ""}" style="--i:${Math.min(i, 12)}">
     <button class="pass-top" type="button" data-key="${esc(g.key)}" aria-expanded="${open}">
       <span class="pass-main">
         <span class="pass-route">
@@ -619,11 +639,14 @@ function passHTML(g, i) {
         <span class="badges">${badges(d) || `<span class="badge reg">${esc(placeOf(d))}</span>`}</span>
       </span>
       <span class="pass-stub">
-        <span><span class="fare-label">Tarifa${g.rt ? " total" : ""}</span>
+        <span><span class="fare-label">Tarifa${g.rt ? " total" : d.par_volta ? " ida + volta" : g.unpaired ? " só ida" : ""}</span>
           <span class="fare"><small>R$</small>${fmtInt(d.preco)}</span></span>
-        ${delta(d) || (g.rt ? "" : rotaDelta(d) || '<span class="delta flat">sem histórico</span>')}
+        ${d.par_volta
+          ? `<span class="delta flat">ida ${fmtBRL(d.preco_ida)} + volta ${fmtBRL(d.par_volta.preco)}</span>`
+          : delta(d) || (g.rt ? "" : rotaDelta(d) || '<span class="delta flat">sem histórico</span>')}
       </span>
     </button>
+    ${returnLine}
     <div class="pass-foot">
       ${spark(d) || `<span class="kicker">${esc(placeOf(d))}</span>`}
       <span class="pass-toggle">${open ? "Fechar" : g.rt ? "Ver trechos" : "Ver calendário"} ${icon("chevron", "chevron")}</span>
@@ -651,7 +674,10 @@ function tableRowHTML(d) {
     ${cell("Rota", `${rota} <span class="muted">· ${esc(placeOf(d))}</span>`)}
     ${cell("Data", `<span class="num"${d.visto_em ? ` title="${ageOf(d.visto_em)}"` : ""}>${data}</span>`)}
     ${cell("Cia", `${cia}${isRT(d) ? "" : ` <span class="muted">· ${d.direto ? "direto" : d.paradas + " parada(s)"}</span>`}`)}
-    ${cell("Tarifa", `<span class="num">${fmtBRL(d.preco)}</span>`)}
+    ${cell("Tarifa", `<span class="num">${fmtBRL(d.preco)}</span>${d.par_volta ? ` <span class="muted">ida ${fmtBRL(d.preco_ida)}</span>` : ""}`)}
+    <td data-label="Volta" class="col-pair">${d.par_volta
+      ? `${returnLink(d)} <span class="muted">· ${d.par_estadia} d</span>`
+      : d.sem_par ? `<span class="muted">${esc(unpairedText(d))}</span>` : "—"}</td>
     ${cell("vs. média", delta(d) || '<span class="muted">sem histórico</span>')}
     ${cell("vs. rota", rotaDelta(d, true) || '<span class="muted">—</span>')}
     ${cell("Sinal", badges(d) || "—")}
@@ -691,6 +717,7 @@ function renderCounters(rows) {
 }
 
 function render() {
+  $("table").classList.toggle("no-pair", !STAY || !ESTADIAS);
   const rows = filtered();
   renderBoard(rows);
   renderCounters(rows);

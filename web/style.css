@@ -676,3 +676,17 @@ a.promo-title:hover, a.promo-title:focus-visible { color: var(--amber); text-dec
   .promo-row { grid-template-columns: auto minmax(0, 1fr); }
   .promo-row .promo-body { grid-column: 1 / -1; }
 }
+
+/* ---------------- Round trips by stay ---------------- */
+.pass-return {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-top: 1px dashed var(--line);
+  font-family: var(--f-mono); font-size: .75rem; color: var(--text-2);
+}
+.pass-return a { color: var(--violet); text-decoration: none; }
+.pass-return a:hover, .pass-return a:focus-visible { text-decoration: underline; }
+.pass-return.is-missing { color: var(--text-3); }
+.pass.is-unpaired { opacity: .55; }
+.pass.is-unpaired:hover, .pass.is-unpaired:focus-within { opacity: .8; }
+#table.no-pair .col-pair { display: none; }
