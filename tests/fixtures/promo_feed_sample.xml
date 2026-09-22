@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<channel>
+  <title>Blog de Teste</title>
+  <link>https://example.com</link>
+  <item>
+    <title>Itália nas férias! Voos para Roma ou Milão a partir de R$ 4.270 ida e volta</title>
+    <link>https://example.com/italia.html</link>
+    <pubDate>Fri, 18 Sep 2026 20:21:01 +0000</pubDate>
+    <category><![CDATA[Promoções]]></category>
+    <category><![CDATA[Passagens Aéreas]]></category>
+    <guid isPermaLink="false">https://example.com/?p=1</guid>
+    <description><![CDATA[<p>A <b>Ita Airways</b> tem tarifas   para dezembro&#8230;</p>]]></description>
+  </item>
+  <item>
+    <title>Sem guid: Livelo com 100% de bônus na transferência para a Smiles</title>
+    <link>https://example.com/livelo.html</link>
+    <pubDate>Sat, 19 Sep 2026 09:00:00 -0300</pubDate>
+    <description><![CDATA[Transfira seus pontos até domingo.]]></description>
+  </item>
+  <item>
+    <title>Sem data</title>
+    <link>https://example.com/sem-data.html</link>
+    <guid>https://example.com/?p=3</guid>
+    <pubDate>isto não é uma data</pubDate>
+    <description></description>
+  </item>
+  <item>
+    <title></title>
+    <link>https://example.com/sem-titulo.html</link>
+    <guid>https://example.com/?p=4</guid>
+  </item>
+  <item>
+    <title>Sem link</title>
+    <guid>https://example.com/?p=5</guid>
+  </item>
+</channel>
+</rss>

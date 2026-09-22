@@ -15,3 +15,5 @@ history/
 _site/
 scripts/exploration/
 .claude/
+promo_data/
+promos.enc.json

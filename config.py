@@ -148,3 +148,9 @@ MILES_ROUTES = [
     {"from": "IGU", "to": "CNF", "miles_threshold": 20000, "program": "AZUL_MILES"},
 ]
 MILES_DAYS_AHEAD: int = 30
+
+# --- Promotions from RSS feeds (promos/, promos_main.py) ---
+PROMO_FEEDS: list[tuple[str, str]] = [
+    ("Melhores Destinos", "https://www.melhoresdestinos.com.br/feed"),
+    ("Passageiro de Primeira", "https://passageirodeprimeira.com/feed/"),
+]
