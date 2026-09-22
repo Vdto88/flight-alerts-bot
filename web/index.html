@@ -139,6 +139,10 @@
             <option value="data">Ordenar: data mais próxima</option>
             <option value="destino">Ordenar: destino (A-Z)</option>
           </select>
+          <select id="f-estadia" aria-label="Estadia para ida e volta" hidden>
+            <option value="">Estadia: só ida</option>
+            <option value="best">Estadia: melhor volta</option>
+          </select>
           <div class="segmented" role="group" aria-label="Modo de visualização">
             <button type="button" class="seg" data-view="cards" aria-pressed="true">
               <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-grid"/></svg> Cartões
@@ -163,6 +167,7 @@
                 <th data-sort="data" aria-sort="none"><button type="button">Data</button></th>
                 <th data-sort="cia" aria-sort="none"><button type="button">Cia</button></th>
                 <th data-sort="preco" aria-sort="ascending"><button type="button">Tarifa</button></th>
+                <th class="col-pair">Volta</th>
                 <th data-sort="delta_pct" aria-sort="none"><button type="button">vs. média</button></th>
                 <th data-sort="rota_delta_pct" aria-sort="none"><button type="button">vs. rota</button></th>
                 <th>Sinal</th>

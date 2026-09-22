@@ -104,6 +104,16 @@ AIRPORTS: dict[str, Airport] = {
     "ORY": Airport("Paris", None, "França"),
 }
 
+# Stays offered by the new panel's round-trip selector, by country of the non-hub airport.
+# The panel pairs each outbound fare with the cheapest return this many days later.
+# Ascending order matters: on equal totals the panel keeps the shorter stay.
+STAY_OPTIONS: dict[str, tuple[int, ...]] = {
+    "Brasil":    (4, 5, 6, 7),
+    "Argentina": (7, 8, 9, 10),
+    "Chile":     (7, 8, 9, 10),
+}
+STAY_OPTIONS_DEFAULT: tuple[int, ...] = (13, 14, 15, 16)   # any other country (Europe today)
+
 PRICE_WATCHES: list[PriceWatch] = [
     PriceWatch("SJK", month(2026, 9), 400.0),   # São José dos Campos, Sep/2026, <= R$400
     PriceWatch("SLZ", None, 600.0),             # São Luís, standing (rolling window), <= R$600
