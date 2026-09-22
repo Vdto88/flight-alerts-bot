@@ -32,7 +32,8 @@ def _cut(text: str, limit: int = SUMMARY_LIMIT) -> str:
 
 def _tag_line(c: Classification) -> str:
     if c.kind == "miles":
-        return "🏷️ " + " · ".join(c.programs + c.destinations)
+        parts = (("🟢 saindo de BH",) if c.from_bh else ()) + c.programs + c.destinations
+        return "🏷️ " + " · ".join(parts)
     parts = []
     if c.from_bh:
         parts.append("🟢 saindo de BH")

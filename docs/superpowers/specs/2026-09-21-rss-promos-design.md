@@ -130,7 +130,8 @@ signals are regular expressions and are written already lowercase and unaccented
 
 Hotel programmes and foreign programmes alone do not qualify. "Livelo com 100% de bônus para o
 Flying Blue" passes because of Livelo. `programs` lists every programme matched. If the text
-also cites a configured destination, `destinations` is filled too.
+also cites a configured destination, `destinations` is filled too, and if it also cites
+BH/Belo Horizonte/Confins/CNF/Minas Gerais, `from_bh` is set.
 
 **Step 2 — fare.** Otherwise, require a fare word ("passagem/passagens", "voo/voos", "tarifa",
 "ida e volta", "trecho") **and** an offer signal: an `R$` price or an offer word ("promoção",
@@ -176,7 +177,7 @@ Fare, to `PROMO_TOPIC_FARES`:
 ```
 
 Miles, to `PROMO_TOPIC_MILES`: same, opening with 💳 and with `🏷️ <programs>` instead of the 📍
-line (plus the destinations when present).
+line (plus the destinations when present, and "🟢 saindo de BH" first when `from_bh`).
 
 All feed text goes through `telegram_bot._md()`. Link previews are disabled. Markdown mode is
 the one `telegram_bot` already uses.

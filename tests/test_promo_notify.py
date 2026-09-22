@@ -57,6 +57,12 @@ def test_miles_message_lists_programmes_and_destinations():
     assert "📍" not in text
 
 
+def test_miles_message_leads_with_bh_when_from_bh():
+    miles_bh = Classification("miles", (), ("Livelo",), from_bh=True, origin_unknown=False)
+    text = notify.format_promo(item(), miles_bh)
+    assert "🏷️ 🟢 saindo de BH · Livelo\n" in text
+
+
 def test_markdown_specials_from_the_feed_are_escaped():
     text = notify.format_promo(item(title="Tarifa_erro *agora* [hoje]", summary="a_b `c`"), FARE)
     assert "*Tarifa\\_erro \\*agora\\* \\[hoje]*" in text

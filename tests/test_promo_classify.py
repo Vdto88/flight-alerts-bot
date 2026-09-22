@@ -133,6 +133,13 @@ def test_post_matching_both_kinds_is_miles_and_keeps_the_destination():
     assert c is not None and c.kind == "miles" and c.destinations == ("Lisboa",)
 
 
+def test_miles_citing_bh_keeps_the_origin():
+    c, _ = classify(item("Resgate Smiles saindo de Confins para Lisboa em promoção"))
+    assert c is not None and c.kind == "miles"
+    assert c.from_bh is True
+    assert c.destinations == ("Lisboa",)
+
+
 def test_news_about_a_programme_without_a_promotion_signal_is_not_miles():
     c, _ = classify(item("Smiles anuncia novo diretor de marketing"))
     assert c is None

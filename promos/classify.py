@@ -87,7 +87,8 @@ def classify(item: FeedItem) -> tuple[Classification | None, str]:
 
     programs = _labels_in_order(config.PROMO_MILES_PROGRAMS, text)
     if programs and any(re.search(signal, text) for signal in config.PROMO_MILES_SIGNALS):
-        return (Classification("miles", places["dest"], programs, from_bh=False, origin_unknown=False),
+        return (Classification("miles", places["dest"], programs, from_bh=bool(places["home"]),
+                                origin_unknown=False),
                 f"miles:{programs[0]}")
 
     if _first(config.PROMO_FARE_WORDS, text) is None:
