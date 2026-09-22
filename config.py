@@ -163,6 +163,13 @@ PROMO_SEED_MAX_AGE_HOURS: int = 6       # with no state yet, older posts are rec
 # Every term below is matched on whole words after lowercasing and stripping accents, so write
 # them naturally. The signals are regular expressions run on that normalised text, so they are
 # written already lowercase and unaccented.
+# The blogs advertise their own paid alert services with fare words and "% OFF"; those posts
+# are rejected before any other rule looks at them.
+PROMO_SELF_PROMO_TERMS: tuple[str, ...] = (
+    "Alertas do PP", "Alertas PP", "assine o PP", "assinante do PP", "assinantes do PP",
+    "Passageiro de Primeira Alertas", "MD Alertas", "Alertas MD",
+)
+
 PROMO_HOME_TERMS: tuple[str, ...] = ("BH", "Belo Horizonte", "Confins", "CNF", "Minas Gerais")
 
 # Extra names for configured destinations: term -> label shown to the owner. The city names of

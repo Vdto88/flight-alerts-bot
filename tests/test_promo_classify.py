@@ -148,3 +148,12 @@ def test_news_about_a_programme_without_a_promotion_signal_is_not_miles():
 def test_the_summary_counts_too():
     c, _ = classify(item("Promoção relâmpago da Gol", "Passagens saindo de Confins a partir de R$ 199."))
     assert c is not None and c.from_bh
+
+
+@pytest.mark.parametrize("title", [
+    "A primavera chegou com 15% OFF pra sempre nos Alertas do PP",
+    "Assine o PP e receba as promoções de passagens antes de todo mundo",
+])
+def test_the_blogs_own_subscription_ads_are_rejected_first(title):
+    c, reason = classify(item(title))
+    assert c is None and reason.startswith("rejected:self-promo:")

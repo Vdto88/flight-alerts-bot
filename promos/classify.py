@@ -83,6 +83,9 @@ def _places(text: str) -> dict[str, tuple[str, ...]]:
 def classify(item: FeedItem) -> tuple[Classification | None, str]:
     """(classification or None, the rule that decided)."""
     text = normalize(f"{item.title} {item.summary}")
+    self_promo = _first(config.PROMO_SELF_PROMO_TERMS, text)
+    if self_promo:
+        return None, f"rejected:self-promo:{self_promo}"
     places = _places(text)
 
     programs = _labels_in_order(config.PROMO_MILES_PROGRAMS, text)
