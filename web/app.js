@@ -85,12 +85,19 @@ function viewDeals() {
   if (!STAY || !ESTADIAS) return DEALS;
   if (VIEW_CACHE && VIEW_CACHE[0] === STAY) return VIEW_CACHE[1];
   const stay = STAY === "best" ? "best" : Number(STAY);
-  const rows = DEALS.filter((d) => !isRT(d) && sentidoOf(d) === "ida").map((d) => {
+  const mapped = DEALS.filter((d) => !isRT(d) && sentidoOf(d) === "ida").map((d) => {
     const r = pairReturn(d, stay, RETURNS, ESTADIAS);
     return r.volta
       ? { ...d, preco: r.total, preco_ida: d.preco, par_volta: r.volta, par_estadia: r.estadia }
       : { ...d, sem_par: r.motivo, validas: r.validas };
   });
+  // A route with at least one paired date also has unpaired ones exempt from the price
+  // filter (see `filtered`); left in, a lowered slider can filter out every paired date and
+  // leave only the unpaired ones, showing a false "out of window" reason for what is really a
+  // price miss. Drop a route's unpaired rows once it has a pair, so only genuinely unpaired
+  // routes keep the exemption.
+  const pairedKeys = new Set(mapped.filter((d) => !d.sem_par).map(groupKey));
+  const rows = mapped.filter((d) => !d.sem_par || !pairedKeys.has(groupKey(d)));
   VIEW_CACHE = [STAY, rows];
   return rows;
 }
@@ -98,7 +105,7 @@ function viewDeals() {
 /* Why an outbound fare has no return in the chosen stay. */
 function unpairedText(d) {
   if (d.sem_par === "out-of-window") return "Volta fora da janela buscada";
-  const where = d.pais === "Brasil" ? "destinos nacionais" : d.pais;
+  const where = d.pais === "Brasil" ? "destinos nacionais" : (d.pais || d.cidade || cidadeOf(d));
   return `Estadia de ${STAY} dias não vale para ${where} (${d.validas[0]}–${d.validas[d.validas.length - 1]} dias)`;
 }
 
