@@ -26,6 +26,14 @@ let HIST_DAYS = 60;
 // Near band (config.WINDOW_MAX_DAYS): beyond it, dates are searched once a day and carried.
 // The fallback is only for a cached snapshot written before the field existed.
 let NEAR_DAYS = 120;
+
+// Round trips by stay (config.STAY_OPTIONS, shipped as "estadias"). STAY: "" = one-way view,
+// "best" = cheapest return over the destination's stays, else a number of days as a string.
+let ESTADIAS = null;
+let RETURNS = new Map();          // "<origem>|<data>" -> one-way return record (X -> HUB)
+let STAY = "";
+let VIEW_CACHE = null;            // [STAY, rows]: pairing depends on STAY only
+const STAY_KEY = "painel-estadia";
 const cityOf = (code) => (AIRPORTS[code] && AIRPORTS[code].cidade) || code;
 
 const isRT = (d) => d.tipo === "roundtrip";
@@ -45,6 +53,47 @@ const inRegion = (d, v) => {
 const groupKey = (d) => (isRT(d)
   ? `rt:${d.ida_destino}|${d.data_ida}|${d.volta_origem}|${d.data_volta}`
   : `${cidadeOf(d)}|${sentidoOf(d)}`);
+
+/* ---------------- Round trips by stay ---------------- */
+const addDays = (iso, n) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+};
+const staysFor = (d, estadias) => estadias.por_pais[d.pais] || estadias.padrao;
+
+/* The cheapest return `stay` days after an outbound one-way fare. `stay` is a number, or
+   "best" for every valid stay of the destination (ties keep the shorter stay, because the
+   stays arrive in ascending order and only a strictly cheaper return replaces the best).
+   -> {volta, total, estadia} | {motivo: "invalid-stay" | "out-of-window", validas} */
+function pairReturn(ida, stay, index, estadias) {
+  const validas = staysFor(ida, estadias);
+  const tries = stay === "best" ? validas : validas.includes(stay) ? [stay] : null;
+  if (!tries) return { motivo: "invalid-stay", validas };
+  let best = null;
+  for (const s of tries) {
+    const volta = index.get(`${ida.destino}|${addDays(ida.data, s)}`);
+    if (volta && (!best || volta.preco < best.volta.preco)) best = { volta, estadia: s };
+  }
+  if (!best) return { motivo: "out-of-window", validas };
+  return { ...best, total: Math.round((ida.preco + best.volta.preco) * 100) / 100 };
+}
+
+/* What the panel lists. One-way view: the snapshot as is. With a stay chosen: only outbound
+   one-way fares, each carrying its return (its price becomes the total) or why it has none.
+   Returns and the Europe watch's round trips would duplicate the pairs, so they drop out. */
+function viewDeals() {
+  if (!STAY || !ESTADIAS) return DEALS;
+  if (VIEW_CACHE && VIEW_CACHE[0] === STAY) return VIEW_CACHE[1];
+  const stay = STAY === "best" ? "best" : Number(STAY);
+  const rows = DEALS.filter((d) => !isRT(d) && sentidoOf(d) === "ida").map((d) => {
+    const r = pairReturn(d, stay, RETURNS, ESTADIAS);
+    return r.volta
+      ? { ...d, preco: r.total, preco_ida: d.preco, par_volta: r.volta, par_estadia: r.estadia }
+      : { ...d, sem_par: r.motivo, validas: r.validas };
+  });
+  VIEW_CACHE = [STAY, rows];
+  return rows;
+}
 
 /* ---------------- Formatting ---------------- */
 const fmtInt = (n) => Math.round(n).toLocaleString("pt-BR");
@@ -230,7 +279,7 @@ function filtered() {
   $("clear-label").textContent = active ? `Limpar (${active})` : "Limpar";
   $("clear").classList.toggle("is-active", active > 0);
 
-  return DEALS.filter((d) =>
+  return viewDeals().filter((d) =>
     inRegion(d, f.regiao) &&
     (!f.aeroporto || cidadeOf(d) === f.aeroporto) &&
     (!f.sentido || (!isRT(d) && sentidoOf(d) === f.sentido)) &&
@@ -244,7 +293,9 @@ function filtered() {
       f.tipo === "queda" ? (d.delta_pct != null && d.delta_pct <= -5) :
         (!isRT(d) && d.price_watch != null)
     )) &&
-    d.preco <= f.precoMax
+    // Unpaired fares have no total to compare; the slider at its maximum means no limit,
+    // since totals can exceed the one-way maximum it was sized for.
+    (d.sem_par || f.precoMax >= Number($("f-preco").max) || d.preco <= f.precoMax)
   );
 }
 
@@ -257,6 +308,11 @@ function groupDeals(rows) {
     groups.get(key).deals.push(d);
   });
   for (const g of groups.values()) {
+    // With a stay chosen, dates without a return drop out of their pass; a pass left with
+    // none stays, dimmed, to say why (wrong stay for this destination, or no return yet).
+    const paired = g.deals.filter((d) => !d.sem_par);
+    if (paired.length) g.deals = paired;
+    else g.unpaired = g.deals[0];
     g.deals.sort((a, b) => (a.data < b.data ? -1 : 1));
     g.best = g.deals.reduce((a, b) => (b.preco < a.preco ? b : a));
     // Light the pass up only when the fare it shows carries a signal; with ~135 dates
@@ -274,7 +330,8 @@ function sortGroups(groups) {
     data: (g) => g.best.data,
     destino: (g) => g.cidade,
   }[$("f-ordem").value];
-  return groups.sort((a, b) => (pick(a) > pick(b) ? 1 : pick(a) < pick(b) ? -1 : 0));
+  return groups.sort((a, b) =>
+    (!!a.unpaired - !!b.unpaired) || (pick(a) > pick(b) ? 1 : pick(a) < pick(b) ? -1 : 0));
 }
 
 /* ============================================================
@@ -314,7 +371,7 @@ function flaps(text) {
 function boardRow(d) {
   flapSeq += 4; // each row starts settling a beat after the previous one
   const dest = isRT(d) ? `${d.ida_destino}` : cidadeOf(d);
-  const leg = isRT(d) ? "ida+volta" : sentidoOf(d);
+  const leg = isRT(d) ? "ida+volta" : d.par_volta ? `ida+volta ${d.par_estadia}d` : sentidoOf(d);
   const when = isRT(d) ? fmtShort(d.data_ida) : fmtShort(d.data);
   const cia = (isRT(d) ? d.cia_ida : d.cia).slice(0, 7);
   const [cls, status] = statusOf(d);
@@ -332,6 +389,7 @@ function boardRow(d) {
 }
 
 function renderBoard(rows) {
+  rows = rows.filter((d) => !d.sem_par);   // an unpaired fare is no highlight
   const best = new Map();
   rows.forEach((d) => {
     const k = groupKey(d);
@@ -604,7 +662,7 @@ function tableRowHTML(d) {
 function renderTable(rows) {
   const sorted = [...rows].sort((a, b) => {
     const x = a[sortKey] ?? Infinity, y = b[sortKey] ?? Infinity;
-    return (x > y ? 1 : x < y ? -1 : 0) * sortDir;
+    return (!!a.sem_par - !!b.sem_par) || (x > y ? 1 : x < y ? -1 : 0) * sortDir;
   });
   $("rows").innerHTML = sorted.slice(0, tableLimit).map(tableRowHTML).join("");
   const rest = sorted.length - tableLimit;
@@ -616,7 +674,8 @@ function renderTable(rows) {
    Render
    ============================================================ */
 function renderCounters(rows) {
-  const menor = rows.length ? fmtBRL(Math.min(...rows.map((d) => d.preco))) : "—";
+  const priced = rows.filter((d) => !d.sem_par);
+  const menor = priced.length ? fmtBRL(Math.min(...priced.map((d) => d.preco))) : "—";
   const destinos = new Set(rows.map(cidadeOf)).size;
   const sinais = rows.filter(hasSignal).length;
   const quedas = rows.filter((d) => d.delta_pct != null && d.delta_pct <= -5).length;
@@ -635,7 +694,7 @@ function render() {
   const rows = filtered();
   renderBoard(rows);
   renderCounters(rows);
-  $("count").textContent = `${fmtInt(rows.length)} de ${fmtInt(DEALS.length)} tarifas`;
+  $("count").textContent = `${fmtInt(rows.length)} de ${fmtInt(viewDeals().length)} tarifas`;
   $("empty").hidden = rows.length > 0;
 
   if (VIEW === "cards") {
@@ -699,6 +758,30 @@ function setup(data) {
   HUB = Object.keys(counts).reduce((a, b) => (counts[b] > counts[a] ? b : a), DEALS.length ? DEALS[0].origem : "CNF");
   $("hub-label").textContent = HUB;
   $("hub-city").textContent = cityOf(HUB);
+
+  // Round trips by stay: returns are indexed once (sentidoOf needs HUB, set just above), and
+  // the selector lists every stay any country uses. A snapshot without the table hides it.
+  ESTADIAS = data.estadias || null;
+  RETURNS = new Map(DEALS.filter((d) => !isRT(d) && sentidoOf(d) === "volta")
+    .map((d) => [`${d.origem}|${d.data}`, d]));
+  VIEW_CACHE = null;
+  const stayEl = $("f-estadia");
+  if (ESTADIAS) {
+    const days = [...new Set([...Object.values(ESTADIAS.por_pais).flat(), ...ESTADIAS.padrao])]
+      .sort((a, b) => a - b);
+    stayEl.insertAdjacentHTML("beforeend",
+      days.map((n) => `<option value="${n}">Estadia: ${n} dias</option>`).join(""));
+    let saved = "";
+    try { saved = localStorage.getItem(STAY_KEY) || ""; } catch (e) { /* storage blocked: one-way */ }
+    if ([...stayEl.options].some((o) => o.value === saved)) { stayEl.value = saved; STAY = saved; }
+    stayEl.hidden = false;
+    stayEl.addEventListener("input", () => {
+      STAY = stayEl.value;
+      try { localStorage.setItem(STAY_KEY, STAY); } catch (e) { /* applied, just not remembered */ }
+      tableLimit = TABLE_PAGE;
+      scheduleRender();
+    });
+  }
 
   // Countries first, then the Brazilian states; city level is the airport filter below.
   const paises = unique(DEALS.map((d) => d.pais).filter(Boolean));
