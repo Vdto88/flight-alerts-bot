@@ -7,7 +7,8 @@ import alerts
 import history
 from airlines.base import Flight
 from alerts import RoundTripAlert
-from config import AIRPORTS, AZUL_HUB, PriceWatch, WINDOW_MAX_DAYS
+from config import (AIRPORTS, AZUL_HUB, PriceWatch, STAY_OPTIONS, STAY_OPTIONS_DEFAULT,
+                    WINDOW_MAX_DAYS)
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,9 @@ def write_deals(deals: list[dict], path: str, generated_at: datetime | None = No
         # The near band, for the panel's "atualizadas uma vez por dia" note on far dates.
         "janela_perto_dias": WINDOW_MAX_DAYS,
         "aeroportos": {code: place_fields(code) for code in AIRPORTS},
+        # Stays the new panel's round-trip selector offers, per country of the destination.
+        "estadias": {"por_pais": {k: list(v) for k, v in STAY_OPTIONS.items()},
+                     "padrao": list(STAY_OPTIONS_DEFAULT)},
         "deals": deals,
     }
     with open(path, "w", encoding="utf-8") as fh:

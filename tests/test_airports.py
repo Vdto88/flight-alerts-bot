@@ -60,3 +60,16 @@ def test_snapshot_ships_the_airport_table(tmp_path):
     table = json.loads(out.read_text(encoding="utf-8"))["aeroportos"]
     assert table["CNF"] == {"cidade": "Belo Horizonte", "uf": "MG", "pais": "Brasil"}
     assert table["BRC"] == {"cidade": "Bariloche", "uf": None, "pais": "Argentina"}
+
+
+def test_every_destination_country_gets_a_deliberate_stay_range():
+    countries = {a.pais for code, a in config.AIRPORTS.items() if code != config.AZUL_HUB}
+    assert set(config.STAY_OPTIONS) <= countries
+    # Europe takes the long default on purpose. A new country would land here silently,
+    # so this list must be edited by hand when one is added: decide its stays then.
+    assert countries - set(config.STAY_OPTIONS) == {"Portugal", "Espanha", "Itália", "França"}
+
+
+def test_stay_ranges_are_ascending_and_positive():
+    for days in [*config.STAY_OPTIONS.values(), config.STAY_OPTIONS_DEFAULT]:
+        assert list(days) == sorted(set(days)) and days[0] > 0

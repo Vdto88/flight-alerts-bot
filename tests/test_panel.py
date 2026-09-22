@@ -91,3 +91,13 @@ def test_write_deals_defaults_timestamp(tmp_path):
     panel.write_deals([], str(out))
     data = json.loads(out.read_text(encoding="utf-8"))
     assert data["gerado_em"].endswith("Z") and data["deals"] == []
+
+
+def test_write_deals_ships_the_stay_table_for_round_trip_pairing(tmp_path):
+    out = tmp_path / "deals.json"
+    panel.write_deals([], str(out))
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["estadias"] == {
+        "por_pais": {"Brasil": [4, 5, 6, 7], "Argentina": [7, 8, 9, 10], "Chile": [7, 8, 9, 10]},
+        "padrao": [13, 14, 15, 16],
+    }
