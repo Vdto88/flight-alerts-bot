@@ -154,3 +154,64 @@ PROMO_FEEDS: list[tuple[str, str]] = [
     ("Melhores Destinos", "https://www.melhoresdestinos.com.br/feed"),
     ("Passageiro de Primeira", "https://passageirodeprimeira.com/feed/"),
 ]
+
+PROMO_TOPIC_FARES: int | None = None    # forum topic "Promoções de passagens"; None = send nothing
+PROMO_TOPIC_MILES: int | None = None    # forum topic "Milhas e pontos"; None = send nothing
+PROMO_MAX_MESSAGES_PER_CYCLE: int = 10
+PROMO_SEED_MAX_AGE_HOURS: int = 6       # with no state yet, older posts are recorded, not sent
+
+# Every term below is matched on whole words after lowercasing and stripping accents, so write
+# them naturally. The signals are regular expressions run on that normalised text, so they are
+# written already lowercase and unaccented.
+PROMO_HOME_TERMS: tuple[str, ...] = ("BH", "Belo Horizonte", "Confins", "CNF", "Minas Gerais")
+
+# Extra names for configured destinations: term -> label shown to the owner. The city names of
+# AIRPORTS (hub excluded) are destination terms already.
+PROMO_DESTINATION_ALIASES: dict[str, str] = {
+    "Itália": "Itália", "Portugal": "Portugal", "Espanha": "Espanha", "França": "França",
+    "Europa": "Europa", "Patagônia": "Patagônia", "Madrid": "Madri",
+    "Foz": "Foz do Iguaçu", "Floripa": "Florianópolis", "Rio": "Rio de Janeiro",
+}
+
+# A sale that names one of these words is about many cities: it passes as "origin unknown".
+PROMO_GENERIC_TERMS: tuple[str, ...] = (
+    "nacionais", "internacionais", "várias cidades", "diversas cidades", "vários destinos",
+    "diversos destinos", "todo o Brasil", "qualquer destino",
+)
+
+# Places that are not configured. A sale naming only these is dropped; a place missing from
+# both lists passes as "origin unknown". Grow this list from the classification log.
+# Left out on purpose: "Natal" and "Vitória" (a Christmas sale is not a sale to Natal).
+# Longer names shadow shorter ones, which is why "Porto Seguro" and "Rio Branco" are here.
+PROMO_OTHER_PLACES: tuple[str, ...] = (
+    "Miami", "Orlando", "Nova York", "Nova Iorque", "Los Angeles", "Las Vegas", "Cancún",
+    "Punta Cana", "Buenos Aires", "Montevidéu", "Lima", "Bogotá", "Cartagena", "Londres",
+    "Amsterdã", "Frankfurt", "Zurique", "Dubai", "Tóquio", "Estados Unidos", "Caribe",
+    "Salvador", "Recife", "Fortaleza", "Maceió", "João Pessoa", "Aracaju", "Brasília",
+    "Goiânia", "Cuiabá", "Campo Grande", "Manaus", "Belém", "Curitiba", "Campinas",
+    "Guarulhos", "Porto Seguro", "Porto de Galinhas", "Porto Velho", "Rio Branco",
+    "Rio Grande do Norte", "Rio Grande do Sul", "São José do Rio Preto", "Fernando de Noronha",
+    "Jericoacoara", "Ilhéus",
+)
+
+PROMO_FARE_WORDS: tuple[str, ...] = (
+    "passagem", "passagens", "voo", "voos", "tarifa", "tarifas", "ida e volta", "trecho", "trechos",
+)
+PROMO_OFFER_WORDS: tuple[str, ...] = (
+    "promoção", "promoções", "oferta", "ofertas", "desconto", "descontos", "barato", "barata",
+    "baratos", "baratas", "tarifa erro",
+)
+
+PROMO_MILES_SIGNALS: tuple[str, ...] = (
+    r"bonus\w*\b.{0,60}\btransfer", r"\btransfer\w*\b.{0,60}\bbonus", r"transferencia bonificada",
+    r"\bcompra de (pontos|milhas)\b", r"\bmilheiro\b", r"\bclube\b", r"\bresgate\w*\b",
+    r"\bpontos por real\b", r"\b(ganhe|acumule)\b.{0,40}\b(pontos|milhas)\b",
+)
+# term -> label. Brazilian programmes and banks only: a hotel or foreign programme alone is out.
+PROMO_MILES_PROGRAMS: dict[str, str] = {
+    "Azul Fidelidade": "Azul Fidelidade", "TudoAzul": "Azul Fidelidade", "Tudo Azul": "Azul Fidelidade",
+    "Smiles": "Smiles", "Latam Pass": "Latam Pass", "Livelo": "Livelo", "Esfera": "Esfera",
+    "Iupp": "Iupp", "Átomos": "Átomos", "Itaú": "Itaú", "Bradesco": "Bradesco",
+    "Santander": "Santander", "Banco do Brasil": "Banco do Brasil", "Caixa": "Caixa", "C6": "C6",
+    "Banco Inter": "Inter", "Inter Loop": "Inter", "Nubank": "Nubank", "XP": "XP", "BTG": "BTG",
+}
