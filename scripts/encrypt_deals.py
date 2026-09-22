@@ -56,11 +56,16 @@ def encrypt_file(in_path: str, out_path: str, password: str) -> str:
 
 
 def main(password: str, root: str = ".") -> int:
-    """Encrypt the snapshot and every per-route history file under `root`. History plaintext
-    is removed once encrypted (nothing unencrypted may be published); deals.json stays because
-    the workflow's snapshot check reads it. Returns the history files encrypted."""
+    """Encrypt the snapshot, every per-route history file and the promotions payload under
+    `root`. History plaintext is removed once encrypted (nothing unencrypted may be published);
+    deals.json stays because the workflow's snapshot check reads it. The promotions payload is
+    restored from the promotions workflow's cache and may be missing. Returns the history
+    files encrypted."""
     base = Path(root)
     encrypt_file(str(base / "deals.json"), str(base / "deals.enc.json"), password)
+    promos = base / "promo_data" / "promos.json"
+    if promos.exists():
+        encrypt_file(str(promos), str(base / "promos.enc.json"), password)
     count = 0
     for plain in sorted((base / "history").glob("*.json")):
         if plain.name.endswith(".enc.json"):
