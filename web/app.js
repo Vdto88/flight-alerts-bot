@@ -72,6 +72,77 @@ function ageOf(iso) {
 let PASSWORD = "";
 const loadDeals = (password) => PanelCrypto.load("deals.enc.json", password);
 
+/* ---------------- Promotions (blog posts picked by the hourly RSS cycle) ----------------
+   Optional: the file may not exist yet, and the panel must work without it. Everything in it
+   was written by third parties, so it only ever reaches the page through textContent. */
+const PROMO_PAGE = 8;
+let PROMOS = [], PROMO_KIND = "", PROMO_SHOWN = PROMO_PAGE;
+
+function promoAge(iso) {
+  const min = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (min < 60) return `há ${min} min`;
+  if (min < 1440) return `há ${Math.round(min / 60)} h`;
+  const days = Math.round(min / 1440);
+  return days === 1 ? "ontem" : `há ${days} dias`;
+}
+
+function el(tag, cls, text) {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function promoRow(p) {
+  const li = el("li", "promo-row" + (p.origem_bh ? " from-bh" : ""));
+  li.append(el("span", "promo-age", promoAge(p.publicado_em)));
+  li.append(el("span", "badge " + (p.tipo === "milhas" ? "rt" : "azul"), p.tipo === "milhas" ? "milhas" : "passagem"));
+
+  const body = el("div", "promo-body");
+  const safe = typeof p.link === "string" && p.link.startsWith("https://");
+  const title = el(safe ? "a" : "span", "promo-title", p.titulo);
+  if (safe) { title.href = p.link; title.target = "_blank"; title.rel = "noopener noreferrer"; }
+  body.append(title);
+
+  const tags = el("div", "promo-tags");
+  if (p.origem_bh) tags.append(el("span", "badge low", "saindo de BH"));
+  [...(p.programas || []), ...(p.destinos || [])].forEach((t) => tags.append(el("span", "badge reg", t)));
+  if (p.origem_nao_informada) tags.append(el("span", "badge reg", "origem não informada"));
+  tags.append(el("span", "promo-source", p.fonte));
+  body.append(tags);
+
+  li.append(body);
+  return li;
+}
+
+function renderPromos() {
+  const rows = PROMOS.filter((p) => !PROMO_KIND || p.tipo === PROMO_KIND);
+  $("promo-rows").replaceChildren(...rows.slice(0, PROMO_SHOWN).map(promoRow));
+  $("promo-empty").hidden = rows.length > 0;
+  const left = rows.length - PROMO_SHOWN;
+  $("promo-more").hidden = left <= 0;
+  $("promo-more").textContent = `Ver mais ${Math.min(left, PROMO_PAGE)} de ${left}`;
+}
+
+function setupPromos(data) {
+  PROMOS = Array.isArray(data && data.promos) ? data.promos : [];
+  if (!PROMOS.length) return;          // nothing collected yet: keep the section out of the way
+  $("promos").hidden = false;
+  document.querySelectorAll(".pseg").forEach((b) => b.addEventListener("click", () => {
+    PROMO_KIND = b.dataset.promo;
+    PROMO_SHOWN = PROMO_PAGE;
+    document.querySelectorAll(".pseg").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
+    renderPromos();
+  }));
+  $("promo-more").addEventListener("click", () => { PROMO_SHOWN += PROMO_PAGE; renderPromos(); });
+  renderPromos();
+}
+
+const loadPromos = (password) =>
+  PanelCrypto.load("promos.enc.json", password)
+    .then(setupPromos)
+    .catch((e) => console.warn(`promoções indisponíveis (${e && e.code ? e.code : "erro"})`));
+
 /* History is one encrypted file per route, fetched the first time a pass of that route is
    drawn open. Map value: undefined = not requested, null = loading, false = failed, object = loaded. */
 const ROUTE_HISTORY = new Map();
@@ -705,6 +776,7 @@ async function unlock(event) {
     const data = await loadDeals(password);
     PASSWORD = password;          // kept in memory only, to fetch history/<ROTA>.enc.json later
     setup(data);
+    loadPromos(password);         // optional section; never blocks or fails the unlock
   } catch (e) {
     err.textContent = UNLOCK_MESSAGES[e && e.code] || UNLOCK_FALLBACK;
     err.hidden = false;

@@ -1,0 +1,55 @@
+name: Promotions from RSS
+
+on:
+  schedule:
+    - cron: "17 * * * *"   # hourly, off the top of the hour where GitHub delays crons the most
+  workflow_dispatch: {}
+
+concurrency:
+  group: promos
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      # Own cache key: this is the only workflow that saves promo_data/. The main workflow
+      # restores it read-only, so the two never race on a save.
+      - name: Restore promotions state
+        id: promo_cache
+        uses: actions/cache/restore@v4
+        with:
+          path: promo_data
+          key: promos-state-${{ github.run_id }}
+          restore-keys: |
+            promos-state-
+
+      - name: Run one pass
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+        run: python promos_main.py
+
+      # Unconditional: promos_main.py exits 1 when every feed fails, and the per-feed failure
+      # counters (which drive the 6-cycle health alert) live only in this state. A save gated
+      # on job success would never persist a total outage, so the alert could never fire.
+      - name: Save promotions state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: promo_data
+          key: promos-state-${{ github.run_id }}

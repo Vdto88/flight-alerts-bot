@@ -86,6 +86,21 @@
         <ol id="board" class="board-rows"></ol>
       </section>
 
+      <section class="promos" id="promos" aria-labelledby="promos-title" hidden>
+        <div class="board-head">
+          <h2 id="promos-title">Promoções</h2>
+          <div class="segmented" role="group" aria-label="Filtrar promoções">
+            <button type="button" class="pseg" data-promo="" aria-pressed="true">Todas</button>
+            <button type="button" class="pseg" data-promo="passagem" aria-pressed="false">Passagens</button>
+            <button type="button" class="pseg" data-promo="milhas" aria-pressed="false">Milhas</button>
+          </div>
+        </div>
+        <p class="kicker" id="promos-note">publicadas nos blogs nos últimos 14 dias · origem quase nunca informada</p>
+        <ol id="promo-rows" class="promo-rows"></ol>
+        <p id="promo-empty" class="board-empty" hidden>Nenhuma promoção desse tipo por enquanto.</p>
+        <button id="promo-more" class="btn-ghost more" type="button" hidden></button>
+      </section>
+
       <div id="summary" class="counters"></div>
 
       <div class="toolbar">

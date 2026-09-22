@@ -71,6 +71,17 @@ jobs:
         run: |
           python -c "import json, os; deals = (json.load(open('deals.json')).get('deals', []) if os.path.exists('deals.json') else []); open(os.environ['GITHUB_OUTPUT'], 'a').write('has_deals=' + ('true' if deals else 'false') + '\n')"
 
+      - name: Restore promotions state (read-only)
+        # Saved hourly by promos.yml; here it is only read, to ship the panel section.
+        if: steps.snapshot.outputs.has_deals == 'true'
+        continue-on-error: true
+        uses: actions/cache/restore@v4
+        with:
+          path: promo_data
+          key: promos-state-readonly
+          restore-keys: |
+            promos-state-
+
       - name: Encrypt deals and history
         if: steps.snapshot.outputs.has_deals == 'true'
         env:
@@ -85,6 +96,7 @@ jobs:
           mkdir -p _site/classic
           cp web/classic/index.html web/classic/style.css web/classic/app.js _site/classic/
           cp deals.enc.json _site/
+          if [ -f promos.enc.json ]; then cp promos.enc.json _site/; fi
           mkdir -p _site/history
           if ls history/*.enc.json >/dev/null 2>&1; then cp history/*.enc.json _site/history/; fi
 

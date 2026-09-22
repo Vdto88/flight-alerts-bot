@@ -635,3 +635,44 @@ table#table { width: 100%; border-collapse: collapse; font-size: .8125rem; }
 .bar-row.is-low .bar-fill { background: var(--green); }
 .bar-row.is-low .bar-val { color: var(--green); }
 .hist-note { color: var(--text-3); font-size: .85rem; margin: 0 0 1rem; }
+
+/* ---------------- Promotions (blog posts) ---------------- */
+.promos {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: var(--sp-4) var(--sp-4) var(--sp-3);
+  margin-bottom: var(--sp-5);
+}
+.promos .board-head { margin-bottom: var(--sp-2); }
+.pseg {
+  display: inline-flex; align-items: center;
+  min-height: 38px; padding: 0 .85rem;
+  background: transparent; border: 0; border-radius: 6px;
+  color: var(--text-2); font-size: .8125rem; cursor: pointer;
+  transition: background .15s var(--ease), color .15s var(--ease);
+}
+.pseg[aria-pressed="true"] { background: var(--amber); color: #1a1203; font-weight: 600; }
+.promo-rows { list-style: none; margin: var(--sp-3) 0 0; padding: 0; }
+.promo-row {
+  display: grid; grid-template-columns: 5.5rem 5.5rem minmax(0, 1fr);
+  gap: var(--sp-3); align-items: start;
+  padding: .6rem var(--sp-2);
+  border-bottom: 1px solid rgb(255 255 255 / .04);
+  border-left: 2px solid transparent;
+}
+.promo-row:last-child { border-bottom: 0; }
+.promo-row.from-bh { border-left-color: var(--amber); background: rgb(255 178 26 / .05); }
+.promo-age { font-family: var(--f-mono); font-size: .6875rem; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); padding-top: .2rem; }
+.promo-row > .badge { justify-self: start; }
+.promo-body { min-width: 0; }
+.promo-title { color: var(--cream); text-decoration: none; font-weight: 500; overflow-wrap: anywhere; }
+a.promo-title:hover, a.promo-title:focus-visible { color: var(--amber); text-decoration: underline; }
+.promo-tags { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1); margin-top: var(--sp-1); }
+.promo-source { font-family: var(--f-mono); font-size: .6875rem; color: var(--text-3); margin-left: var(--sp-1); }
+
+@media (max-width: 640px) {
+  .promos { padding: var(--sp-3); }
+  .promo-row { grid-template-columns: auto minmax(0, 1fr); }
+  .promo-row .promo-body { grid-column: 1 / -1; }
+}

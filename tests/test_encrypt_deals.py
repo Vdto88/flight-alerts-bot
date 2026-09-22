@@ -75,3 +75,22 @@ def test_cli_does_not_re_encrypt_already_encrypted_files(tmp_path):
     (hist / "CNF-GIG.enc.json").write_text('{"v":2}', encoding="utf-8")
     assert main("segredo", root=str(tmp_path)) == 0
     assert (hist / "CNF-GIG.enc.json").read_text(encoding="utf-8") == '{"v":2}'
+
+
+def test_cli_encrypts_the_promotions_payload_when_it_exists(tmp_path):
+    (tmp_path / "deals.json").write_text(json.dumps({"deals": []}), encoding="utf-8")
+    (tmp_path / "promo_data").mkdir()
+    promos = {"gerado_em": "2026-09-21T12:00:00Z", "promos": [{"titulo": "Promoção"}]}
+    (tmp_path / "promo_data" / "promos.json").write_text(json.dumps(promos), encoding="utf-8")
+
+    main("senha", root=str(tmp_path))
+
+    payload = json.loads((tmp_path / "promos.enc.json").read_text(encoding="utf-8"))
+    assert payload["v"] == 2
+    assert json.loads(decrypt_bytes(payload, "senha")) == promos
+
+
+def test_cli_without_a_promotions_payload_writes_no_promotions_file(tmp_path):
+    (tmp_path / "deals.json").write_text(json.dumps({"deals": []}), encoding="utf-8")
+    main("senha", root=str(tmp_path))
+    assert not (tmp_path / "promos.enc.json").exists()
