@@ -100,3 +100,20 @@ def test_save_never_raises_when_the_directory_cannot_be_created(tmp_path):
     blocker = tmp_path / "arquivo"
     blocker.write_text("x", encoding="utf-8")
     promo_state.save(promo_state.PromoState(), NOW, blocker / "s.json", blocker / "p.json")
+
+
+def test_load_drops_promo_records_without_a_valid_stamp(tmp_path):
+    path = tmp_path / "promos_state.json"
+    valid = {"guid": "a", "tipo": "passagem", "titulo": "T", "resumo": "R", "link": "L",
+              "fonte": "F", "publicado_em": "2026-09-21T12:00:00Z", "destinos": [], "programas": [],
+              "origem_bh": False, "origem_nao_informada": True}
+    path.write_text(json.dumps({"seen": {"a": "2026-09-21T12:00:00Z"},
+                                 "promos": [{"guid": "x"}, valid]}), encoding="utf-8")
+    st = promo_state.load(path)
+    assert [p["guid"] for p in st.promos] == ["a"]
+    assert st.seeding is False
+
+
+def test_save_does_not_raise_when_a_promo_lacks_a_stamp(tmp_path):
+    st = promo_state.PromoState(promos=[{"guid": "x"}])
+    promo_state.save(st, NOW, tmp_path / "s.json", tmp_path / "p.json")

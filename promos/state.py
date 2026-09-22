@@ -95,11 +95,25 @@ class PromoState:
                 "promos": [{k: v for k, v in p.items() if k != "guid"} for p in newest_first]}
 
 
+def _valid_promo(p) -> bool:
+    if not isinstance(p, dict):
+        return False
+    try:
+        _parse(p["publicado_em"])
+    except (KeyError, TypeError, ValueError):
+        return False
+    return True
+
+
 def load(path: Path = STATE_PATH) -> PromoState:
     try:
         raw = json.loads(Path(path).read_text(encoding="utf-8"))
+        promos = list(raw["promos"])
+        good_promos = [p for p in promos if _valid_promo(p)]
+        if len(good_promos) != len(promos):
+            logger.warning("estado das promoções: registro(s) sem 'publicado_em' válido descartado(s)")
         state = PromoState(
-            seen=dict(raw["seen"]), promos=list(raw["promos"]), attempts=dict(raw.get("attempts", {})),
+            seen=dict(raw["seen"]), promos=good_promos, attempts=dict(raw.get("attempts", {})),
             feed_failures=dict(raw.get("feed_failures", {})),
             health_alerted=list(raw.get("health_alerted", [])),
         )
@@ -116,11 +130,11 @@ def load(path: Path = STATE_PATH) -> PromoState:
 
 def save(state: PromoState, now: datetime, state_path: Path = STATE_PATH,
          payload_path: Path = PAYLOAD_PATH) -> None:
-    state.prune(now)
-    body = {k: v for k, v in asdict(state).items() if k != "seeding"}
     try:
+        state.prune(now)
+        body = {k: v for k, v in asdict(state).items() if k != "seeding"}
         for path, content in ((Path(state_path), body), (Path(payload_path), state.payload(now))):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(json.dumps(content, ensure_ascii=False), encoding="utf-8")
-    except OSError as e:
+    except (OSError, KeyError, TypeError, ValueError) as e:
         logger.error(f"estado das promoções não gravado: {e}")
