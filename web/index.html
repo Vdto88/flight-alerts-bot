@@ -75,6 +75,19 @@
         </div>
       </header>
 
+      <!-- Trip mode: everything below (highlights, counters, passes, table) follows it. -->
+      <section class="trip-mode" id="trip-mode" aria-label="Tipo de viagem" hidden>
+        <div class="segmented trip-seg" role="group" aria-label="Tipo de viagem">
+          <button type="button" class="tseg" data-mode="ow" aria-pressed="false">Só ida</button>
+          <button type="button" class="tseg" data-mode="rt" aria-pressed="true">Ida e volta</button>
+        </div>
+        <div class="stays" id="stays">
+          <span class="kicker">Estadia</span>
+          <div class="stay-chips" id="stay-chips" role="group" aria-label="Estadia em dias"></div>
+          <p class="stay-hint" id="stay-hint"></p>
+        </div>
+      </section>
+
       <section class="board" aria-labelledby="board-title">
         <div class="board-head">
           <h2 id="board-title">Em destaque agora</h2>
@@ -106,20 +119,6 @@
       <div class="toolbar">
         <div class="filters" id="filters">
           <select id="f-regiao" aria-label="Filtrar por região"></select>
-          <select id="f-sentido" aria-label="Filtrar por sentido">
-            <option value="">Sentido: todos</option>
-            <option value="ida">Ida (de CNF)</option>
-            <option value="volta">Volta (pra CNF)</option>
-          </select>
-          <select id="f-aeroporto" aria-label="Filtrar por aeroporto"></select>
-          <select id="f-cia" aria-label="Filtrar por companhia"></select>
-          <select id="f-tipo" aria-label="Filtrar por tipo de sinal">
-            <option value="">Sinal: todos</option>
-            <option value="azul">Azul mais barata</option>
-            <option value="watch">Price-watch</option>
-            <option value="roundtrip">Ida+volta Europa</option>
-            <option value="queda">Preço em queda</option>
-          </select>
           <label class="field-inline"><span>De</span><input type="date" id="f-de" aria-label="Data inicial" /></label>
           <label class="field-inline"><span>Até</span><input type="date" id="f-ate" aria-label="Data final" /></label>
           <label class="field-inline check"><input id="f-direto" type="checkbox" /> <span>Só diretos</span></label>
@@ -127,6 +126,9 @@
             <span>Até <output id="f-preco-out"></output></span>
             <input id="f-preco" type="range" min="0" max="10000" step="50" aria-label="Preço máximo" />
           </label>
+          <button id="more-btn" class="btn-ghost" type="button" aria-expanded="false" aria-controls="more-filters">
+            Mais filtros <span id="more-count"></span> <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-chevron"/></svg>
+          </button>
         </div>
 
         <div class="view-controls">
@@ -139,10 +141,6 @@
             <option value="data">Ordenar: data mais próxima</option>
             <option value="destino">Ordenar: destino (A-Z)</option>
           </select>
-          <select id="f-estadia" aria-label="Estadia para ida e volta" hidden>
-            <option value="">Estadia: só ida</option>
-            <option value="best">Estadia: melhor volta</option>
-          </select>
           <div class="segmented" role="group" aria-label="Modo de visualização">
             <button type="button" class="seg" data-view="cards" aria-pressed="true">
               <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-grid"/></svg> Cartões
@@ -151,6 +149,23 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><use href="#i-rows"/></svg> Tabela
             </button>
           </div>
+        </div>
+
+        <div class="more-filters" id="more-filters" hidden>
+          <select id="f-aeroporto" aria-label="Filtrar por aeroporto"></select>
+          <select id="f-cia" aria-label="Filtrar por companhia"></select>
+          <select id="f-tipo" aria-label="Filtrar por tipo de sinal">
+            <option value="">Sinal: todos</option>
+            <option value="azul">Azul mais barata</option>
+            <option value="watch">Price-watch</option>
+            <option value="roundtrip">Alerta ida+volta Europa</option>
+            <option value="queda">Preço em queda</option>
+          </select>
+          <select id="f-sentido" aria-label="Filtrar por sentido">
+            <option value="">Sentido: todos</option>
+            <option value="ida">Ida (de CNF)</option>
+            <option value="volta">Volta (pra CNF)</option>
+          </select>
         </div>
       </div>
 
