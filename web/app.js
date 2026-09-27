@@ -32,7 +32,9 @@ let NEAR_DAYS = 120;
 let ESTADIAS = null;
 let RETURNS = new Map();          // "<origem>|<data>" -> one-way return record (X -> HUB)
 let STAY = "";
+let LAST_STAY = "best";           // the stay "Ida e volta" comes back to after "Só ida"
 let VIEW_CACHE = null;            // [STAY, rows]: pairing depends on STAY only
+// Stored "" means the owner picked "Só ida"; nothing stored means round trips by best stay.
 const STAY_KEY = "painel-estadia";
 const cityOf = (code) => (AIRPORTS[code] && AIRPORTS[code].cidade) || code;
 
@@ -78,12 +80,17 @@ function pairReturn(ida, stay, index, estadias) {
   return { ...best, total: Math.round((ida.preco + best.volta.preco) * 100) / 100 };
 }
 
-/* What the panel lists. One-way view: the snapshot as is. With a stay chosen: only outbound
-   one-way fares, each carrying its return (its price becomes the total) or why it has none.
-   Returns and the Europe watch's round trips would duplicate the pairs, so they drop out. */
+/* What the panel lists. One-way view: the one-way fares, both directions. With a stay chosen:
+   only outbound one-way fares, each carrying its return (its price becomes the total) or why
+   it has none, plus the Europe watch's round trips whose stay matches. Snapshots older than
+   the stay table have no modes and list everything. */
 function viewDeals() {
-  if (!STAY || !ESTADIAS) return DEALS;
+  if (!ESTADIAS) return DEALS;
   if (VIEW_CACHE && VIEW_CACHE[0] === STAY) return VIEW_CACHE[1];
+  if (!STAY) {
+    VIEW_CACHE = [STAY, DEALS.filter((d) => !isRT(d))];
+    return VIEW_CACHE[1];
+  }
   const stay = STAY === "best" ? "best" : Number(STAY);
   const mapped = DEALS.filter((d) => !isRT(d) && sentidoOf(d) === "ida").map((d) => {
     const r = pairReturn(d, stay, RETURNS, ESTADIAS);
@@ -97,7 +104,8 @@ function viewDeals() {
   // price miss. Drop a route's unpaired rows once it has a pair, so only genuinely unpaired
   // routes keep the exemption.
   const pairedKeys = new Set(mapped.filter((d) => !d.sem_par).map(groupKey));
-  const rows = mapped.filter((d) => !d.sem_par || !pairedKeys.has(groupKey(d)));
+  const rows = mapped.filter((d) => !d.sem_par || !pairedKeys.has(groupKey(d)))
+    .concat(DEALS.filter((d) => isRT(d) && (stay === "best" || d.estadia === stay)));
   VIEW_CACHE = [STAY, rows];
   return rows;
 }
@@ -142,8 +150,9 @@ const loadDeals = (password) => PanelCrypto.load("deals.enc.json", password);
 /* ---------------- Promotions (blog posts picked by the hourly RSS cycle) ----------------
    Optional: the file may not exist yet, and the panel must work without it. Everything in it
    was written by third parties, so it only ever reaches the page through textContent. */
-const PROMO_PAGE = 8;
-let PROMOS = [], PROMO_KIND = "", PROMO_SHOWN = PROMO_PAGE;
+// Only the latest few up front, so the fares are not pushed far down the page.
+const PROMO_FIRST = 3, PROMO_PAGE = 8;
+let PROMOS = [], PROMO_KIND = "", PROMO_SHOWN = PROMO_FIRST;
 
 function promoAge(iso) {
   const min = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
@@ -197,7 +206,7 @@ function setupPromos(data) {
   $("promos").hidden = false;
   document.querySelectorAll(".pseg").forEach((b) => b.addEventListener("click", () => {
     PROMO_KIND = b.dataset.promo;
-    PROMO_SHOWN = PROMO_PAGE;
+    PROMO_SHOWN = PROMO_FIRST;
     document.querySelectorAll(".pseg").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
     renderPromos();
   }));
@@ -235,7 +244,7 @@ function icon(name, cls = "") {
 
 function badges(d) {
   const out = [];
-  if (isRT(d)) out.push('<span class="badge rt">ida + volta</span>');
+  if (isRT(d)) out.push('<span class="badge rt">alerta ida+volta</span>');
   if (d.azul_cheapest) out.push('<span class="badge azul">Azul mais barata</span>');
   if (d.price_watch != null) out.push(`<span class="badge watch">alvo ≤ ${fmtBRL(d.price_watch)}</span>`);
   if (d.menor_hist) out.push(`<span class="badge low">${icon("star")} menor em ${HIST_DAYS}d</span>`);
@@ -297,6 +306,10 @@ function filtered() {
     .filter(Boolean).length + (f.precoMax < Number($("f-preco").max) ? 1 : 0);
   $("clear-label").textContent = active ? `Limpar (${active})` : "Limpar";
   $("clear").classList.toggle("is-active", active > 0);
+  // The folded filters say how many of them are on, so a hidden one never goes unnoticed.
+  const folded = [f.aeroporto, f.cia, f.tipo, f.sentido].filter(Boolean).length;
+  $("more-count").textContent = folded ? `(${folded})` : "";
+  $("more-btn").classList.toggle("is-active", folded > 0);
 
   return viewDeals().filter((d) =>
     inRegion(d, f.regiao) &&
@@ -646,10 +659,10 @@ function passHTML(g, i) {
         <span class="badges">${badges(d) || `<span class="badge reg">${esc(placeOf(d))}</span>`}</span>
       </span>
       <span class="pass-stub">
-        <span><span class="fare-label">Tarifa${g.rt ? " total" : d.par_volta ? " ida + volta" : g.unpaired ? " só ida" : ""}</span>
+        <span><span class="fare-label">${g.rt ? "Tarifa total" : d.par_volta ? "Ida + volta" : g.unpaired ? "Tarifa só ida" : "Tarifa"}</span>
           <span class="fare"><small>R$</small>${fmtInt(d.preco)}</span></span>
         ${d.par_volta
-          ? `<span class="delta flat">ida ${fmtBRL(d.preco_ida)} + volta ${fmtBRL(d.par_volta.preco)}</span>`
+          ? `<span class="fare-split">ida ${fmtBRL(d.preco_ida)}<br>volta ${fmtBRL(d.par_volta.preco)}</span>`
           : delta(d) || (g.rt ? "" : rotaDelta(d) || '<span class="delta flat">sem histórico</span>')}
       </span>
     </button>
@@ -776,6 +789,70 @@ function fillSelect(el, label, values, fmt = (v) => v) {
     values.map((v) => `<option value="${esc(v)}">${esc(fmt(v))}</option>`).join("");
 }
 
+/* ---------------- Trip mode: "Só ida" / "Ida e volta" + stay chips ---------------- */
+
+/* "Brasil 4–7 · Argentina, Chile 7–10 · demais 13–16 dias": which chip fits which trip. */
+function stayHint(e) {
+  const span = (s) => `${s[0]}–${s[s.length - 1]}`;
+  const byRange = new Map();
+  Object.entries(e.por_pais).forEach(([pais, s]) =>
+    byRange.set(span(s), [...(byRange.get(span(s)) || []), pais]));
+  const parts = [...byRange].map(([range, paises]) => `${paises.join(", ")} ${range}`);
+  return `Melhor = a volta mais barata dentro da estadia de cada destino · ${parts.join(" · ")} · demais ${span(e.padrao)} dias`;
+}
+
+/* Everything that depends on the mode, except the list itself (render does that). */
+function syncTripMode() {
+  const rt = !!STAY;
+  document.querySelectorAll(".tseg").forEach((b) =>
+    b.setAttribute("aria-pressed", String((b.dataset.mode === "rt") === rt)));
+  document.querySelectorAll(".chip").forEach((b) =>
+    b.setAttribute("aria-pressed", String(b.dataset.stay === STAY)));
+  $("stays").hidden = !rt;
+  // Every pair is an outbound, so "Sentido" has nothing to pick; the Europe watch's round
+  // trips only exist in this mode, so its signal has nothing to find without it.
+  const sentido = $("f-sentido");
+  sentido.hidden = rt;
+  if (rt) sentido.value = "";
+  const rtOption = $("f-tipo").querySelector('option[value="roundtrip"]');
+  rtOption.hidden = rtOption.disabled = !rt;
+  if (!rt && $("f-tipo").value === "roundtrip") $("f-tipo").value = "";
+}
+
+function setStay(value) {
+  STAY = value;
+  if (value) LAST_STAY = value;
+  try { localStorage.setItem(STAY_KEY, value); } catch (e) { /* applied, just not remembered */ }
+  syncTripMode();
+  tableLimit = TABLE_PAGE;
+  scheduleRender();
+}
+
+function setupTripMode() {
+  const days = [...new Set([...Object.values(ESTADIAS.por_pais).flat(), ...ESTADIAS.padrao])]
+    .sort((a, b) => a - b);
+  const chips = [["best", "Melhor"], ...days.map((n) => [String(n), `${n} dias`])];
+  $("stay-chips").innerHTML = chips.map(([v, label]) =>
+    `<button type="button" class="chip" data-stay="${v}" aria-pressed="false">${label}</button>`).join("");
+  $("stay-hint").textContent = stayHint(ESTADIAS);
+
+  let saved = null;
+  try { saved = localStorage.getItem(STAY_KEY); } catch (e) { /* storage blocked: default mode */ }
+  STAY = saved === "" ? "" : chips.some(([v]) => v === saved) ? saved : "best";
+  if (STAY) LAST_STAY = STAY;
+
+  document.querySelectorAll(".tseg").forEach((b) => b.addEventListener("click", () => {
+    const rt = b.dataset.mode === "rt";
+    if (rt !== !!STAY) setStay(rt ? LAST_STAY : "");
+  }));
+  $("stay-chips").addEventListener("click", (e) => {
+    const chip = e.target.closest(".chip");
+    if (chip && chip.dataset.stay !== STAY) setStay(chip.dataset.stay);
+  });
+  $("trip-mode").hidden = false;
+  syncTripMode();
+}
+
 function setup(data) {
   DEALS = data.deals;
   AIRPORTS = data.aeroportos || {};
@@ -794,28 +871,12 @@ function setup(data) {
   $("hub-city").textContent = cityOf(HUB);
 
   // Round trips by stay: returns are indexed once (sentidoOf needs HUB, set just above), and
-  // the selector lists every stay any country uses. A snapshot without the table hides it.
+  // the chips list every stay any country uses. A snapshot without the table hides the mode bar.
   ESTADIAS = data.estadias || null;
   RETURNS = new Map(DEALS.filter((d) => !isRT(d) && sentidoOf(d) === "volta")
     .map((d) => [`${d.origem}|${d.data}`, d]));
   VIEW_CACHE = null;
-  const stayEl = $("f-estadia");
-  if (ESTADIAS) {
-    const days = [...new Set([...Object.values(ESTADIAS.por_pais).flat(), ...ESTADIAS.padrao])]
-      .sort((a, b) => a - b);
-    stayEl.insertAdjacentHTML("beforeend",
-      days.map((n) => `<option value="${n}">Estadia: ${n} dias</option>`).join(""));
-    let saved = "";
-    try { saved = localStorage.getItem(STAY_KEY) || ""; } catch (e) { /* storage blocked: one-way */ }
-    if ([...stayEl.options].some((o) => o.value === saved)) { stayEl.value = saved; STAY = saved; }
-    stayEl.hidden = false;
-    stayEl.addEventListener("input", () => {
-      STAY = stayEl.value;
-      try { localStorage.setItem(STAY_KEY, STAY); } catch (e) { /* applied, just not remembered */ }
-      tableLimit = TABLE_PAGE;
-      scheduleRender();
-    });
-  }
+  if (ESTADIAS) setupTripMode();
 
   // Countries first, then the Brazilian states; city level is the airport filter below.
   const paises = unique(DEALS.map((d) => d.pais).filter(Boolean));
@@ -830,11 +891,17 @@ function setup(data) {
   slider.max = String(Math.ceil(DEALS.reduce((m, d) => Math.max(m, d.preco), 1000) / 50) * 50);
   slider.value = slider.max;
 
-  document.querySelectorAll("#filters select, #filters input, #f-ordem").forEach((el) =>
+  document.querySelectorAll("#filters select, #filters input, #more-filters select, #f-ordem").forEach((el) =>
     el.addEventListener("input", () => { tableLimit = TABLE_PAGE; scheduleRender(); }));
 
+  $("more-btn").addEventListener("click", () => {
+    const open = $("more-filters").hidden;
+    $("more-filters").hidden = !open;
+    $("more-btn").setAttribute("aria-expanded", String(open));
+  });
+
   $("clear").addEventListener("click", () => {
-    document.querySelectorAll("#filters select").forEach((s) => (s.value = ""));
+    document.querySelectorAll("#filters select, #more-filters select").forEach((s) => (s.value = ""));
     $("f-de").value = $("f-ate").value = "";
     $("f-direto").checked = false;
     slider.value = slider.max;

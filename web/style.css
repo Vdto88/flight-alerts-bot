@@ -690,3 +690,56 @@ a.promo-title:hover, a.promo-title:focus-visible { color: var(--amber); text-dec
 .pass.is-unpaired { opacity: .55; }
 .pass.is-unpaired:hover, .pass.is-unpaired:focus-within { opacity: .8; }
 #table.no-pair .col-pair { display: none; }
+
+/* ---------------- Trip mode ---------------- */
+.trip-mode {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3) var(--sp-5);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+.tseg, .chip {
+  display: inline-flex; align-items: center;
+  background: transparent; border: 0; border-radius: 6px;
+  color: var(--text-2); cursor: pointer;
+  transition: background .15s var(--ease), color .15s var(--ease), border-color .15s var(--ease);
+}
+.tseg {
+  min-height: 44px; padding: 0 1.25rem;
+  font-family: var(--f-display); font-size: 1.15rem; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+.tseg[aria-pressed="true"] { background: var(--amber); color: #1a1203; }
+/* min-width 0: on phones the chip strip scrolls instead of widening the page. */
+.stays { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); flex: 1 1 22rem; min-width: 0; }
+.stay-chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+.chip {
+  min-height: 36px; padding: 0 .7rem;
+  border: 1px solid var(--line-strong); border-radius: var(--r-full);
+  font-family: var(--f-mono); font-size: .75rem;
+}
+.chip:hover { color: var(--cream); border-color: var(--text-3); }
+.chip[aria-pressed="true"] { background: var(--violet-soft); border-color: var(--violet); color: var(--violet); font-weight: 600; }
+.stay-hint { flex-basis: 100%; margin: 0; font-size: .75rem; color: var(--text-3); }
+
+/* ---------------- Folded filters ---------------- */
+#more-btn .chevron { transition: transform .15s var(--ease); }
+#more-btn[aria-expanded="true"] .chevron { transform: rotate(180deg); }
+.more-filters { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+@media (min-width: 721px) {
+  .more-filters { flex-basis: 100%; order: 1; }   /* its own row, under the view controls */
+}
+
+@media (max-width: 720px) {
+  .trip-mode { padding: var(--sp-3); }
+  .trip-seg { width: 100%; }
+  .tseg { flex: 1; justify-content: center; }
+  .stay-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+  .stay-chips::-webkit-scrollbar { display: none; }
+  .chip { flex: none; }
+  #more-btn { order: -1; }   /* the filter strip scrolls sideways: keep this one in view */
+}
+/* The paired pass's breakdown: two short lines, so it fits the 128px stub. */
+.fare-split { font-family: var(--f-mono); font-size: .6875rem; line-height: 1.5; color: var(--text-2); white-space: nowrap; }
