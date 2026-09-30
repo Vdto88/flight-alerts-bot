@@ -1,7 +1,7 @@
 # Milhas: Azul, LATAM e GOL
 
-O ciclo `python miles_main.py --notify` roda após a busca em reais no mesmo
-workflow (08h, 14h e 20h de Brasília). Reutiliza `GROUPS`, rotas CNF ↔ destino,
+A coleta de milhas roda neste computador às 08h, 14h e 20h, no horário
+local do Windows (Brasília neste PC). Reutiliza `GROUPS`, rotas CNF ↔ destino,
 janelas extras, observações e a janela longa do ciclo da manhã. Os coletores
 consultam **ofertas públicas anunciadas**, não inventário completo de emissão.
 Não conseguem garantir uma tarifa para cada data da configuração.
@@ -23,29 +23,28 @@ do autor. Todas as requisições do ciclo de milhas usam o cliente local,
 compilado do commit fixado do projeto; não há fallback para outro
 cliente HTTP. A coleta em reais existente continua com seu próprio mecanismo.
 
-## Configuração do cliente de milhas no GitHub Actions
+## Configuração local
 
-A dependência de transporte é privada e não é distribuída neste repositório
-ou no site. O token padrão de Actions não tem acesso a outros repos privados.
-Antes de ativar a coleta automática, configure no
-[GitHub Secrets do bot](https://github.com/Vdto88/flight-alerts-bot/settings/secrets/actions):
+Abra `Configurar-Milhas.cmd` uma vez. O token Telegram existente é reutilizado.
+Preencha o ID do grupo (ou um link privado de uma mensagem `t.me/c/...`) e a
+**mesma senha do painel atual**. Os valores ficam no `.env`, ignorado pelo Git.
+Não envie credenciais pelo chat. A senha é verificada contra o histórico
+criptografado existente antes de qualquer publicação de milhas.
 
-- `MILES_CLIENT_SOURCE`: o repositório privado de origem, no formato organização/repo.
-- `MILES_CLIENT_READ_TOKEN`: credencial autorizada pela organização, restrita
-  à leitura de conteúdo desse repositório quando essa opção estiver disponível.
+O cliente instalado fica em `scripts/exploration/bin/award-http.exe`, fora do
+Git. A dependência privada permanece neste computador. Nenhuma credencial de
+leitura dessa dependência é necessária nos Actions. Para recompilar uma cópia
+já autenticada, use `python scripts/build_miles_client.py CAMINHO_DO_CHECKOUT_PRIVADO`.
+`MILES_CLIENT_BIN` permite indicar outro caminho para o executável.
 
-Não envie valores pelo chat nem grave em arquivos versionados. A origem é
-resolvida em runtime, mascarada nos logs, e os diagnósticos do compilador não
-são impressos nos runs públicos. O workflow compila a revisão fixada, faz as
-consultas diretamente às companhias e publica apenas os arquivos do painel.
-Se o acesso/build falhar, a coleta em reais segue e a área de milhas sinaliza
-que está indisponível.
+O Agendador de Tarefas do Windows usa a tarefa `FlightAlert-Milhas`, com o
+usuário conectado (a tela pode estar bloqueada). Não liga o computador.
+`StartWhenAvailable` tenta recuperar um horário perdido e há um gatilho ao
+entrar no Windows. Execuções simultâneas são bloqueadas; um gatilho automático
+é dispensado quando uma coleta já terminou nos últimos 30 minutos.
 
-Localmente: `python scripts/build_miles_client.py CAMINHO_DO_CHECKOUT_PRIVADO`
-compila a dependência já autenticada e instala o executável em
-`scripts/exploration/bin/award-http`, fora do Git e do cache público de dados.
-`MILES_CLIENT_BIN` permite indicar outro caminho para esse executável. O
-processo não usa proxy herdado do ambiente nem serviço de captcha pago.
+Para reinstalar o agendamento:
+`powershell -ExecutionPolicy Bypass -File scripts/install_local_miles.ps1`.
 
 ## Alertas e execução local
 
@@ -56,22 +55,34 @@ limites em milhas. Referências expiram após 48h; a mesma oferta/valor só é
 reenviada após 24h. Falhas de envio são tentadas novamente. Limite de 20 envios
 por ciclo, com os restantes tentados no próximo ciclo enquanto válidos.
 
-`python miles_main.py` faz prévia local sem enviar mensagens nem alterar a
-referência de produção. Gera `miles.json` (ignorado pelo Git). `--notify` habilita
-mensagens e grava `data/miles-state.json`, persistido pelo cache existente do
-workflow. Não é preciso login nas companhias.
+Para executar manualmente, abra `Rodar-Milhas.cmd` ou rode:
+
+```powershell
+python scripts/local_miles.py --interactive
+```
+
+A execução manual inclui também os dias mais distantes. Os resultados ficam
+em `miles.json`, a referência de alertas em `data/miles-state.json` e os logs
+em `logs/local-miles.log`; todos ignorados pelo Git. Sem destino Telegram,
+a coleta funciona em prévia, sem enviar alertas. Sem senha do painel, os dados
+ficam somente locais. `python miles_main.py` também faz prévia sem mensagens.
 
 ## Painel e publicação
 
-`web/milhas.html` usa a mesma senha do painel e `miles.enc.json`. Há abas por
-companhia, filtros por origem/destino/data/quantidade/viagem/condição e estado de
-falha ou coleta parcial. O build publica somente o arquivo criptografado de
-milhas. Links foram adicionados nos painéis Terminal e clássico.
+`web/milhas.html` usa a mesma senha do painel. Há abas Azul, LATAM e GOL,
+filtros e estados de falha ou coleta parcial. Links aparecem nos painéis
+Terminal e clássico.
 
-As mudanças locais precisam ser enviadas ao GitHub para entrar nas execuções e
-na publicação. Teste completo via cliente de milhas em 30/09/2026: 95 ofertas Azul, 180 LATAM e 1 GOL
-dentro da configuração atual. Isso é uma amostra daquela coleta, não uma
-garantia de cobertura futura.
+O processo local envia **somente `miles.enc.json`, criptografado**, para a
+release `mileage-panel` deste bot, usando a autenticação existente do GitHub
+CLI. O workflow de preços em reais baixa esse arquivo e inclui os dados na
+**próxima publicação do site**. A coleta de milhas não roda no GitHub e seu
+código de transporte privado não é enviado. Preços em reais e promoções
+continuam com seus agendamentos existentes.
+
+Teste completo via cliente local em 30/09/2026: 95 ofertas Azul, 180 LATAM e
+1 GOL dentro da configuração atual. É uma amostra, sem garantia de cobertura
+futura.
 
 ## Repositório privado
 
