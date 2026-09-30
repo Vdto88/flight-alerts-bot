@@ -92,7 +92,7 @@ async def local_sender(offer, previous, topic):
         return False
 
 
-async def collect(scheduled=False):
+async def collect(scheduled=False, short=False):
     from miles.cycle import run
     from scripts.miles_publication import publish
     marker = ROOT / "data/local-miles-last-run.txt"
@@ -109,7 +109,8 @@ async def collect(scheduled=False):
     if not notify:
         logging.warning("Destino Telegram não configurado. Coleta segue; execute Configurar-Milhas.cmd para ativar alertas.")
     brt = now.astimezone(ZoneInfo("America/Sao_Paulo"))
-    report = await run(include_far=not scheduled or brt.hour < 14, notify=notify, sender=local_sender)
+    report = await run(include_far=not short and (not scheduled or brt.hour < 14),
+                       notify=notify, sender=local_sender)
     if all(p["status"] == "error" for p in report["programs"].values()):
         logging.error("Todas as fontes falharam. Consulte logs/local-miles.log e tente novamente.")
         return 1
@@ -133,6 +134,7 @@ def main():
     parser.add_argument("--configure", action="store_true")
     parser.add_argument("--interactive", action="store_true")
     parser.add_argument("--scheduled", action="store_true")
+    parser.add_argument("--short", action="store_true", help="Use the 14h/20h date window")
     args = parser.parse_args()
     os.chdir(ROOT)
     if args.configure:
@@ -152,7 +154,7 @@ def main():
                         handlers=handlers)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     with SingleRun():
-        return asyncio.run(collect(args.scheduled))
+        return asyncio.run(collect(args.scheduled, args.short))
 
 
 if __name__ == "__main__":

@@ -4,7 +4,15 @@ on:
   schedule:
     - cron: "0 11 * * *"      # ~08:00 BRT — long cycle: also searches days 121-180
     - cron: "0 17,23 * * *"   # ~14:00 / 20:00 BRT — short cycles
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      cycle:
+        description: Date window
+        type: choice
+        options:
+          - long
+          - short
+        default: long
 
 concurrency:
   group: azul-alert
@@ -55,7 +63,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
-          SEARCH_FAR_DATES: ${{ (github.event_name == 'workflow_dispatch' || github.event.schedule == '0 11 * * *') && '1' || '0' }}
+          SEARCH_FAR_DATES: ${{ ((github.event_name == 'workflow_dispatch' && inputs.cycle != 'short') || github.event.schedule == '0 11 * * *') && '1' || '0' }}
         run: python main.py
 
       - name: Restore encrypted local mileage snapshot
