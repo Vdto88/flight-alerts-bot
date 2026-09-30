@@ -77,6 +77,8 @@ async def run(*, include_far=False, notify=False, state_path=Path("data/miles-st
     sent_cutoff = (now - timedelta(hours=24)).isoformat()
     sent = {k: v for k, v in state.get("sent", {}).items() if v >= sent_cutoff}
     report = {"generated_at": now.isoformat(), "programs": {},
+              "searched_routes": [{"origin": origin, "destination": destination}
+                                  for origin, destination in sorted(plan)],
               "notice": "Ofertas publicadas, com cobertura parcial de datas. Disponibilidade e taxas precisam de confirmação.",
               "alert_rule": "Queda em relação à última coleta da mesma oferta; primeira coleta estabelece a referência."}
     delivered = 0

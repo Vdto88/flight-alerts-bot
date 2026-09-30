@@ -1,0 +1,48 @@
+name: Publish panel update
+on:
+  workflow_dispatch: {}
+concurrency:
+  group: azul-alert
+  cancel-in-progress: false
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find last successful panel build
+        id: previous
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id=$(gh run list --workflow azul-alert.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          test -n "$run_id" && test "$run_id" != null
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          run-id: ${{ steps.previous.outputs.run_id }}
+          github-token: ${{ github.token }}
+          path: previous-panel
+      - name: Update interface while keeping encrypted flight data
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p _site
+          tar -xf previous-panel/artifact.tar -C _site
+          test -f _site/deals.enc.json
+          cp -R web/. _site/
+          gh release download mileage-panel --pattern miles.enc.json --dir _site --clobber
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - uses: actions/deploy-pages@v4
+        id: deploy
