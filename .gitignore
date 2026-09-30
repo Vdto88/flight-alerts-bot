@@ -17,3 +17,5 @@ scripts/exploration/
 .claude/
 promo_data/
 promos.enc.json
+miles.json
+miles.enc.json

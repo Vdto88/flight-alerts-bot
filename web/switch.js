@@ -18,6 +18,12 @@ const PanelVersion = (() => {
       location.href = url;
     },
 
+    // Open another panel without changing the Terminal/classic preference.
+    visit(url, password) {
+      if (password) safe(() => sessionStorage.setItem(HANDOFF, password));
+      location.href = url;
+    },
+
     // The password crosses the switch exactly once, inside the same tab, and is erased on read.
     takeHandoff() {
       const pw = safe(() => sessionStorage.getItem(HANDOFF));

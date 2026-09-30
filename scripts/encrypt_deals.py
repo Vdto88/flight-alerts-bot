@@ -63,6 +63,9 @@ def main(password: str, root: str = ".") -> int:
     files encrypted."""
     base = Path(root)
     encrypt_file(str(base / "deals.json"), str(base / "deals.enc.json"), password)
+    miles = base / "miles.json"
+    if miles.exists():
+        encrypt_file(str(miles), str(base / "miles.enc.json"), password)
     promos = base / "promo_data" / "promos.json"
     if promos.exists():
         encrypt_file(str(promos), str(base / "promos.enc.json"), password)

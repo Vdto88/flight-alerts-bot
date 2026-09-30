@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#0c0b09" />
+  <title>Terminal CNF — Milhas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Instrument+Sans:wght@400;500;600&family=Martian+Mono:wght@400;500&display=swap" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="milhas.css" />
+  <script src="switch.js"></script>
+  <script src="milhas.js" defer></script>
+</head>
+<body class="miles-page">
+<main>
+  <nav class="miles-nav" aria-label="Painéis"><a href="./" id="cash-link">← Passagens em reais</a><span class="kicker">Terminal CNF</span></nav>
+  <section id="gate" aria-labelledby="gate-title">
+    <div class="miles-gate">
+      <p class="kicker">Seu saldo, outros destinos</p>
+      <h1 id="gate-title">Passagens em milhas</h1>
+      <p>Ofertas Azul, LATAM e GOL nas rotas dos seus alertas.</p>
+      <form id="gate-form">
+        <label class="field"><span>Senha do painel</span><input id="password" type="password" autocomplete="current-password" required /></label>
+        <button id="unlock" class="btn-board" type="submit">Abrir milhas</button>
+      </form>
+      <p id="error" class="error" role="alert" hidden></p>
+    </div>
+  </section>
+  <section id="miles-app" hidden>
+    <header class="miles-head">
+      <div><p class="kicker">Outra forma de embarcar</p><h1>Passagens em <span>milhas</span></h1><p class="miles-subtitle">As rotas dos seus alertas, separadas por programa.</p></div>
+      <p id="updated" class="updated"></p>
+    </header>
+    <div class="miles-tabs" role="tablist" aria-label="Companhia aérea">
+      <button id="tab-azul" role="tab" aria-controls="program-panel" aria-selected="true" data-airline="azul">Azul <span>Fidelidade</span></button>
+      <button id="tab-latam" role="tab" aria-controls="program-panel" aria-selected="false" tabindex="-1" data-airline="latam">LATAM <span>Pass</span></button>
+      <button id="tab-gol" role="tab" aria-controls="program-panel" aria-selected="false" tabindex="-1" data-airline="gol">GOL <span>Smiles</span></button>
+    </div>
+    <section id="program-panel" role="tabpanel" aria-labelledby="tab-azul">
+      <div class="source-summary"><p id="source-status" role="status"></p><p id="source-time" class="updated"></p></div>
+      <p class="miles-notice">Ofertas publicadas, com cobertura parcial de datas. Confirme disponibilidade e taxas na companhia antes de emitir.</p>
+      <form id="filters" class="miles-filters">
+        <label>Origem<select id="origin"><option value="">Todas</option></select></label>
+        <label>Destino<select id="destination"><option value="">Todos</option></select></label>
+        <label>De<input id="start" type="date" /></label>
+        <label>Até<input id="end" type="date" /></label>
+        <label>Até quantas milhas?<input id="max" type="number" min="1" step="1" placeholder="Sem limite" /></label>
+        <label>Viagem<select id="journey"><option value="">Todas</option><option value="oneway">Só ida · por trecho</option><option value="roundtrip">Ida e volta · total</option></select></label>
+        <label>Condição<select id="condition"><option value="">Todas</option></select></label>
+        <button type="reset" class="btn-ghost">Limpar filtros</button>
+      </form>
+      <div class="miles-results-head"><h2>Ofertas encontradas</h2><p id="result-count" role="status"></p></div>
+      <p id="filter-error" class="error" role="alert" hidden>A data final precisa ser igual ou posterior à inicial.</p>
+      <p id="empty" class="miles-empty" hidden></p>
+      <ol id="offers" class="award-list"></ol>
+      <p class="miles-footnote">Valores por pessoa. Programas diferentes têm regras e valores próprios. Os alertas avisam quedas da mesma oferta; a primeira coleta estabelece a referência.</p>
+    </section>
+  </section>
+</main>
+</body>
+</html>

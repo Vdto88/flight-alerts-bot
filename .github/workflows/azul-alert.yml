@@ -58,6 +58,47 @@ jobs:
           SEARCH_FAR_DATES: ${{ (github.event_name == 'workflow_dispatch' || github.event.schedule == '0 11 * * *') && '1' || '0' }}
         run: python main.py
 
+      - name: Check mileage client access configuration
+        id: miles_client_access
+        env:
+          MILES_CLIENT_READ_TOKEN: ${{ secrets.MILES_CLIENT_READ_TOKEN }}
+          MILES_CLIENT_SOURCE: ${{ secrets.MILES_CLIENT_SOURCE }}
+        run: |
+          if [ -n "$MILES_CLIENT_READ_TOKEN" ] && [ -n "$MILES_CLIENT_SOURCE" ]; then
+            echo "::add-mask::${MILES_CLIENT_SOURCE##*/}"
+            echo "::add-mask::${MILES_CLIENT_SOURCE%/*}"
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Configure the mileage client source and read-only access to enable collection."
+          fi
+
+      - name: Check out mileage HTTP client
+        if: steps.miles_client_access.outputs.configured == 'true'
+        uses: actions/checkout@v4
+        continue-on-error: true
+        with:
+          repository: ${{ secrets.MILES_CLIENT_SOURCE }}
+          ref: e83d4e4d3abfb51d2552c8950e97d664526c8c9a
+          token: ${{ secrets.MILES_CLIENT_READ_TOKEN }}
+          persist-credentials: false
+          path: scripts/exploration/private-client
+
+      - name: Build mileage HTTP client
+        if: steps.miles_client_access.outputs.configured == 'true'
+        continue-on-error: true
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal
+          rustup default 1.96.0
+          python scripts/build_miles_client.py scripts/exploration/private-client
+
+      - name: Collect advertised award fares
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          SEARCH_FAR_DATES: ${{ (github.event_name == 'workflow_dispatch' || github.event.schedule == '0 11 * * *') && '1' || '0' }}
+        run: python miles_main.py --notify
+
       - name: Back up history to the release
         id: backup_history
         continue-on-error: true
@@ -93,9 +134,11 @@ jobs:
         run: |
           mkdir -p _site
           cp web/index.html web/style.css web/app.js web/switch.js _site/
+          cp web/milhas.html web/milhas.css web/milhas.js _site/
           mkdir -p _site/classic
           cp web/classic/index.html web/classic/style.css web/classic/app.js _site/classic/
           cp deals.enc.json _site/
+          if [ -f miles.enc.json ]; then cp miles.enc.json _site/; fi
           if [ -f promos.enc.json ]; then cp promos.enc.json _site/; fi
           mkdir -p _site/history
           if ls history/*.enc.json >/dev/null 2>&1; then cp history/*.enc.json _site/history/; fi

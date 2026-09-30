@@ -398,3 +398,7 @@ document.querySelectorAll("[data-switch]").forEach((b) =>
 
 const handedOver = PanelVersion.takeHandoff();
 if (handedOver) { $("password").value = handedOver; $("gate-form").requestSubmit(); }
+
+document.querySelectorAll("[data-miles]").forEach(link => link.addEventListener("click", event => {
+  event.preventDefault(); PanelVersion.visit("../milhas.html", $("password").value);
+}));

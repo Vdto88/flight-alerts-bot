@@ -1,0 +1,45 @@
+.miles-nav { display: flex; justify-content: space-between; align-items: center; padding: 1rem 0 2.5rem; }
+.miles-nav a { color: var(--cream); text-decoration-thickness: 1px; text-underline-offset: .25rem; }
+.miles-head { display: flex; justify-content: space-between; align-items: end; gap: 2rem; margin-bottom: 2rem; }
+.miles-head h1, .miles-gate h1 { font-family: var(--f-display); font-size: clamp(2.6rem, 6vw, 4.5rem); line-height: 1.08; margin: .5rem 0 1rem; }
+.miles-head h1 span { color: var(--amber); }
+.miles-subtitle, .miles-gate > p { color: var(--text-2); }
+.miles-gate { max-width: 520px; margin: 5vh auto; padding: 2rem; border: 1px solid var(--line); background: var(--panel); border-radius: var(--r-lg); }
+.miles-gate form { display: grid; gap: 1rem; margin-top: 2rem; }
+.miles-tabs { display: flex; border-bottom: 1px solid var(--line-strong); gap: .75rem; }
+.miles-tabs button { flex: 1; text-align: left; border: 0; border-bottom: 3px solid transparent; background: transparent; color: var(--text-2); padding: 1rem; cursor: pointer; font: 700 1.3rem var(--f-ui); }
+.miles-tabs button span { display: block; font: 400 .8rem var(--f-ui); margin-top: .3rem; }
+.miles-tabs button[aria-selected="true"] { color: var(--cream); border-bottom-color: var(--amber); background: var(--panel); }
+.source-summary { display: flex; justify-content: space-between; gap: 1rem; padding: 1.5rem 0 .6rem; }
+.source-summary p:first-child { font-weight: 600; }
+.miles-notice { color: var(--text-2); max-width: 78ch; margin-bottom: 1.5rem; font-size: .85rem; }
+.miles-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; background: var(--panel); border: 1px solid var(--line); padding: 1.25rem; border-radius: var(--r-md); }
+.miles-filters label { display: grid; gap: .4rem; font-size: .8rem; color: var(--text-2); }
+.miles-filters input, .miles-filters select { width: 100%; min-width: 0; min-height: 44px; padding: .65rem; background: var(--bg); color: var(--cream); border: 1px solid var(--line-strong); border-radius: var(--r-sm); font: inherit; }
+.miles-filters button { align-self: end; min-height: 44px; }
+.miles-results-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; margin: 2rem 0 1rem; }
+.miles-results-head h2 { font-family: var(--f-display); font-size: 1.8rem; }
+.miles-results-head p { color: var(--text-2); font-size: .85rem; }
+.award-list { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--line); }
+.award-row { display: grid; grid-template-columns: 1.3fr 1fr 1.2fr auto; gap: 1.5rem; align-items: center; padding: 1.5rem .5rem; border-bottom: 1px solid var(--line); }
+.award-route { font: 600 1.25rem var(--f-mono); }
+.award-row small { display: block; font-size: .8rem; color: var(--text-2); margin-top: .4rem; }
+.award-price { font: 500 1.5rem var(--f-mono); color: var(--amber); }
+.award-condition { max-width: 32ch; }
+.award-row a { color: var(--cream); padding: .75rem; border: 1px solid var(--line-strong); border-radius: var(--r-sm); text-decoration: none; white-space: nowrap; }
+.award-row a:hover { background: var(--panel-hover); }
+.miles-empty { padding: 3rem 1.5rem; border: 1px dashed var(--line-strong); color: var(--text-2); text-align: center; }
+.miles-footnote { color: var(--text-2); font-size: .8rem; max-width: 90ch; margin-top: 2rem; }
+.miles-page :focus-visible { outline: 2px solid var(--amber); outline-offset: 4px; }
+@media (max-width: 760px) {
+  .miles-head, .source-summary { flex-direction: column; align-items: start; gap: .4rem; }
+  .miles-nav { padding-bottom: 1.5rem; }
+  .miles-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 1rem; gap: .75rem; }
+  .award-row { grid-template-columns: 1fr 1fr; gap: 1rem; padding: 1.5rem 0; }
+  .award-row a { justify-self: start; }
+  .award-condition { grid-column: 1 / -1; }
+  .award-price { font-size: 1.25rem; }
+  .miles-tabs { gap: 0; }
+  .miles-tabs button { padding: .8rem; }
+  .miles-gate { padding: 1.5rem; }
+}
