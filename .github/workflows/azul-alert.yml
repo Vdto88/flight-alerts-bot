@@ -67,6 +67,7 @@ jobs:
         run: python main.py
 
       - name: Restore encrypted local mileage snapshot
+        if: vars.PANEL_HOSTING != 'local'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
@@ -87,7 +88,7 @@ jobs:
 
       - name: Restore promotions state (read-only)
         # Saved hourly by promos.yml; here it is only read, to ship the panel section.
-        if: steps.snapshot.outputs.has_deals == 'true'
+        if: steps.snapshot.outputs.has_deals == 'true' && vars.PANEL_HOSTING != 'local'
         continue-on-error: true
         uses: actions/cache/restore@v4
         with:
@@ -97,13 +98,13 @@ jobs:
             promos-state-
 
       - name: Encrypt deals and history
-        if: steps.snapshot.outputs.has_deals == 'true'
+        if: steps.snapshot.outputs.has_deals == 'true' && vars.PANEL_HOSTING != 'local'
         env:
           PANEL_PASSWORD: ${{ secrets.PANEL_PASSWORD }}
         run: python scripts/encrypt_deals.py
 
       - name: Assemble site
-        if: steps.snapshot.outputs.has_deals == 'true'
+        if: steps.snapshot.outputs.has_deals == 'true' && vars.PANEL_HOSTING != 'local'
         run: |
           mkdir -p _site
           cp web/index.html web/style.css web/app.js web/switch.js _site/
@@ -117,12 +118,12 @@ jobs:
           if ls history/*.enc.json >/dev/null 2>&1; then cp history/*.enc.json _site/history/; fi
 
       - name: Upload Pages artifact
-        if: steps.snapshot.outputs.has_deals == 'true'
+        if: steps.snapshot.outputs.has_deals == 'true' && vars.PANEL_HOSTING != 'local'
         uses: actions/upload-pages-artifact@v3
         with:
           path: _site
 
       - name: Deploy to GitHub Pages
-        if: steps.snapshot.outputs.has_deals == 'true'
+        if: steps.snapshot.outputs.has_deals == 'true' && vars.PANEL_HOSTING != 'local'
         id: deploy
         uses: actions/deploy-pages@v4
